@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0
+
+Rebrand from **Vatly** to **Avatcado**. This is a breaking release — the package, public identifiers, environment variable, and default endpoint all changed. Migrate by reinstalling under the new name and renaming imports/usages.
+
+### Breaking Changes
+
+- **Package renamed** from `@vatly/node` to `@avatcado/node`
+- **Default client class** `Vatly` renamed to `Avatcado` (default and named export)
+- **Error class** `VatlyError` renamed to `AvatcadoError` (also the static `Avatcado.AvatcadoError`). The `AuthenticationError`, `ValidationError`, `RateLimitError`, and `UpstreamError` subclass names are unchanged.
+- **Types** `VatlyOptions` → `AvatcadoOptions`, `VatlyResult<T>` → `AvatcadoResult<T>`
+- **Environment variable** `VATLY_API_KEY` → `AVATCADO_API_KEY` (no fallback — set the new name)
+- **Default base URL** changed from `https://api.vatly.dev` to `https://api.avatcado.com`
+- **User-Agent** header changed from `vatly-node/<version>` to `avatcado-node/<version>`
+
+### Changed
+
+- Homepage and documentation links moved to `avatcado.com` / `docs.avatcado.com`
+
 ## 0.5.0
 
 ### Added

@@ -1,4 +1,4 @@
-export class VatlyError extends Error {
+export class AvatcadoError extends Error {
   readonly code: string;
   readonly statusCode: number;
   readonly requestId: string | null;
@@ -14,7 +14,7 @@ export class VatlyError extends Error {
     details: Array<{ field: string; message: string }> | null = null,
   ) {
     super(message);
-    this.name = 'VatlyError';
+    this.name = 'AvatcadoError';
     this.code = code;
     this.statusCode = statusCode;
     this.requestId = requestId;
@@ -23,7 +23,7 @@ export class VatlyError extends Error {
   }
 }
 
-export class AuthenticationError extends VatlyError {
+export class AuthenticationError extends AvatcadoError {
   constructor(
     message: string,
     code: string,
@@ -36,7 +36,7 @@ export class AuthenticationError extends VatlyError {
   }
 }
 
-export class ValidationError extends VatlyError {
+export class ValidationError extends AvatcadoError {
   constructor(
     message: string,
     code: string,
@@ -50,7 +50,7 @@ export class ValidationError extends VatlyError {
   }
 }
 
-export class RateLimitError extends VatlyError {
+export class RateLimitError extends AvatcadoError {
   readonly retryAfter: number | null;
 
   constructor(
@@ -67,7 +67,7 @@ export class RateLimitError extends VatlyError {
   }
 }
 
-export class UpstreamError extends VatlyError {
+export class UpstreamError extends AvatcadoError {
   readonly retryAfter: number | null;
 
   constructor(

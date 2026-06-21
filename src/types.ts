@@ -1,8 +1,8 @@
 // --- Core result tuple ---
 
-import type { VatlyError } from './errors.js';
+import type { AvatcadoError } from './errors.js';
 
-export type VatlyResult<T> = { data: T; error: null } | { data: null; error: VatlyError };
+export type AvatcadoResult<T> = { data: T; error: null } | { data: null; error: AvatcadoError };
 
 // --- Error codes ---
 
@@ -35,7 +35,7 @@ export type ClientErrorCode =
 
 // --- Configuration ---
 
-export interface VatlyOptions {
+export interface AvatcadoOptions {
   apiKey?: string;
   baseUrl?: string;
   timeout?: number;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import Vatly, {
-  VatlyError,
+import Avatcado, {
+  AvatcadoError,
   AuthenticationError,
   ValidationError,
   RateLimitError,
@@ -47,57 +47,57 @@ const VALID_RESPONSE = {
 
 // ─── Constructor ──────────────────────────────────────────────
 
-describe('Vatly constructor', () => {
+describe('Avatcado constructor', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
 
   it('accepts a string API key', () => {
-    const client = new Vatly('vtly_live_mykey');
+    const client = new Avatcado('vtly_live_mykey');
     expect(client.vat).toBeDefined();
     expect(client.rates).toBeDefined();
   });
 
   it('accepts a config object', () => {
-    const client = new Vatly({
+    const client = new Avatcado({
       apiKey: MOCK_API_KEY,
-      baseUrl: 'https://custom.api.vatly.dev',
+      baseUrl: 'https://custom.api.avatcado.com',
       timeout: 5000,
     });
     expect(client.vat).toBeDefined();
   });
 
-  it('falls back to VATLY_API_KEY env var', () => {
-    vi.stubEnv('VATLY_API_KEY', 'vtly_live_envkey');
-    const client = new Vatly({});
+  it('falls back to AVATCADO_API_KEY env var', () => {
+    vi.stubEnv('AVATCADO_API_KEY', 'vtly_live_envkey');
+    const client = new Avatcado({});
     expect(client.vat).toBeDefined();
   });
 
-  it('falls back to VATLY_API_KEY env var when config has no apiKey', () => {
-    vi.stubEnv('VATLY_API_KEY', 'vtly_live_envkey');
-    const client = new Vatly({ timeout: 5000 });
+  it('falls back to AVATCADO_API_KEY env var when config has no apiKey', () => {
+    vi.stubEnv('AVATCADO_API_KEY', 'vtly_live_envkey');
+    const client = new Avatcado({ timeout: 5000 });
     expect(client.vat).toBeDefined();
   });
 
   it('throws when no API key is available', () => {
-    vi.stubEnv('VATLY_API_KEY', '');
-    expect(() => new Vatly('')).toThrow(VatlyError);
-    expect(() => new Vatly('')).toThrow('No API key provided');
+    vi.stubEnv('AVATCADO_API_KEY', '');
+    expect(() => new Avatcado('')).toThrow(AvatcadoError);
+    expect(() => new Avatcado('')).toThrow('No API key provided');
   });
 
   it('exposes error classes as static properties', () => {
-    expect(Vatly.VatlyError).toBe(VatlyError);
-    expect(Vatly.AuthenticationError).toBe(AuthenticationError);
-    expect(Vatly.ValidationError).toBe(ValidationError);
-    expect(Vatly.RateLimitError).toBe(RateLimitError);
-    expect(Vatly.UpstreamError).toBe(UpstreamError);
+    expect(Avatcado.AvatcadoError).toBe(AvatcadoError);
+    expect(Avatcado.AuthenticationError).toBe(AuthenticationError);
+    expect(Avatcado.ValidationError).toBe(ValidationError);
+    expect(Avatcado.RateLimitError).toBe(RateLimitError);
+    expect(Avatcado.UpstreamError).toBe(UpstreamError);
   });
 });
 
-// ─── vatly.vat.validate() ─────────────────────────────────────
+// ─── avatcado.vat.validate() ─────────────────────────────────────
 
-describe('vatly.vat.validate()', () => {
+describe('avatcado.vat.validate()', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -112,7 +112,7 @@ describe('vatly.vat.validate()', () => {
 
   it('returns { data, error: null } on success', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeNull();
@@ -129,7 +129,7 @@ describe('vatly.vat.validate()', () => {
       data: { ...VALID_RESPONSE.data, consultation_number: 'WAPIAAAAA1BBBBB' },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(responseWithConsultation));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({
       vatNumber: 'NL123456789B01',
       requesterVatNumber: 'DE987654321',
@@ -142,7 +142,7 @@ describe('vatly.vat.validate()', () => {
 
   it('sends cache=false query param when cache is false', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validate({ vatNumber: 'NL123456789B01', cache: false });
 
     const url = new URL(fetchSpy.mock.calls[0][0] as string);
@@ -151,7 +151,7 @@ describe('vatly.vat.validate()', () => {
 
   it('does not add cache query param when cache option is omitted', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     const url = new URL(fetchSpy.mock.calls[0][0] as string);
@@ -160,7 +160,7 @@ describe('vatly.vat.validate()', () => {
 
   it('sends Authorization header correctly', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly('vtly_live_mykey');
+    const client = new Avatcado('vtly_live_mykey');
     await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
@@ -168,9 +168,9 @@ describe('vatly.vat.validate()', () => {
   });
 
   it('uses env var for auth when config has no apiKey', async () => {
-    vi.stubEnv('VATLY_API_KEY', 'vtly_live_envkey');
+    vi.stubEnv('AVATCADO_API_KEY', 'vtly_live_envkey');
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly({});
+    const client = new Avatcado({});
     await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
@@ -179,25 +179,25 @@ describe('vatly.vat.validate()', () => {
 
   it('uses custom baseUrl', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly({ apiKey: MOCK_API_KEY, baseUrl: 'https://custom.api.vatly.dev' });
+    const client = new Avatcado({ apiKey: MOCK_API_KEY, baseUrl: 'https://custom.api.avatcado.com' });
     await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     const url = new URL(fetchSpy.mock.calls[0][0] as string);
-    expect(url.origin).toBe('https://custom.api.vatly.dev');
+    expect(url.origin).toBe('https://custom.api.avatcado.com');
   });
 
   it('sets User-Agent header correctly', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
-    expect(headers['User-Agent']).toMatch(/^vatly-node\//);
+    expect(headers['User-Agent']).toMatch(/^avatcado-node\//);
   });
 
   it('transforms snake_case fields to camelCase', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     const data = result.data!.data;
@@ -211,7 +211,7 @@ describe('vatly.vat.validate()', () => {
 
   it('consultationNumber is null when not present', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.data.consultationNumber).toBeNull();
@@ -230,7 +230,7 @@ describe('vatly.vat.validate()', () => {
       meta: VALID_RESPONSE.meta,
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(responseWithoutConsultation));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'CHE123456789MWST' });
 
     expect(result.data!.data.consultationNumber).toBeUndefined();
@@ -244,7 +244,7 @@ describe('vatly.vat.validate()', () => {
       data: { ...VALID_RESPONSE.data, company: null },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(responseWithNullCompany));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.data.company).toBeNull();
@@ -257,7 +257,7 @@ describe('vatly.vat.validate()', () => {
       data: { ...VALID_RESPONSE.data, company: { name: 'Test BV', address: null } },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(responseWithNullAddress));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.data.company!.address).toBeNull();
@@ -265,7 +265,7 @@ describe('vatly.vat.validate()', () => {
 
   it('sends X-Request-Id header when requestId option is provided', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validate({ vatNumber: 'NL123456789B01', requestId: 'my-trace-id-123' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
@@ -274,7 +274,7 @@ describe('vatly.vat.validate()', () => {
 
   it('trims whitespace from vatNumber before sending', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validate({ vatNumber: '  NL123456789B01  ' });
 
     const url = new URL(fetchSpy.mock.calls[0][0] as string);
@@ -285,7 +285,7 @@ describe('vatly.vat.validate()', () => {
 
   it('returns response meta with requestId and rateLimit', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.meta.requestId).toBe('req_abc123');
@@ -310,7 +310,7 @@ describe('vatly.vat.validate()', () => {
       },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(cachedResponse));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.meta.cached).toBe(true);
@@ -333,7 +333,7 @@ describe('vatly.vat.validate()', () => {
       },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(testResponse));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.meta.mode).toBe('test');
@@ -354,7 +354,7 @@ describe('vatly.vat.validate()', () => {
       },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(staleResponse));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.meta.stale).toBe(true);
@@ -371,7 +371,7 @@ describe('vatly.vat.validate()', () => {
         headers: { 'content-type': 'application/json' },
       }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.rateLimit.limit).toBeNull();
@@ -389,7 +389,7 @@ describe('vatly.vat.validate()', () => {
         'retry-after': '10',
       }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.rateLimit).toEqual({
@@ -410,7 +410,7 @@ describe('vatly.vat.validate()', () => {
         'x-ratelimit-reset': '2026-05-01T00:00:00Z',
       }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.rateLimit.limit).toBeNull();
@@ -421,7 +421,7 @@ describe('vatly.vat.validate()', () => {
   // --- Error responses (all return { data: null, error }) ---
 
   it('returns ValidationError for empty vatNumber (no network request)', async () => {
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: '' });
 
     expect(result.data).toBeNull();
@@ -431,7 +431,7 @@ describe('vatly.vat.validate()', () => {
   });
 
   it('returns ValidationError for whitespace-only vatNumber', async () => {
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: '   ' });
 
     expect(result.data).toBeNull();
@@ -446,7 +446,7 @@ describe('vatly.vat.validate()', () => {
         401,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data).toBeNull();
@@ -463,7 +463,7 @@ describe('vatly.vat.validate()', () => {
         403,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeInstanceOf(AuthenticationError);
@@ -478,7 +478,7 @@ describe('vatly.vat.validate()', () => {
         422,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'INVALID' });
 
     expect(result.error).toBeInstanceOf(ValidationError);
@@ -493,7 +493,7 @@ describe('vatly.vat.validate()', () => {
         { 'retry-after': '30' },
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeInstanceOf(RateLimitError);
@@ -509,7 +509,7 @@ describe('vatly.vat.validate()', () => {
         { 'retry-after': '5' },
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeInstanceOf(RateLimitError);
@@ -525,7 +525,7 @@ describe('vatly.vat.validate()', () => {
         { 'retry-after': '60' },
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeInstanceOf(UpstreamError);
@@ -539,7 +539,7 @@ describe('vatly.vat.validate()', () => {
         503,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'GB123456789' });
 
     expect(result.error).toBeInstanceOf(UpstreamError);
@@ -551,20 +551,20 @@ describe('vatly.vat.validate()', () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(
         {
-          error: { message: 'Invalid VAT format', code: 'invalid_vat_format', docs_url: 'https://docs.vatly.dev/errors/invalid_vat_format' },
+          error: { message: 'Invalid VAT format', code: 'invalid_vat_format', docs_url: 'https://docs.avatcado.com/errors/invalid_vat_format' },
           meta: { request_id: 'req_err5' },
         },
         422,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'INVALID' });
 
     expect(result.error).toBeInstanceOf(ValidationError);
-    expect(result.error!.docsUrl).toBe('https://docs.vatly.dev/errors/invalid_vat_format');
+    expect(result.error!.docsUrl).toBe('https://docs.avatcado.com/errors/invalid_vat_format');
   });
 
-  it('returns VatlyError on timeout', async () => {
+  it('returns AvatcadoError on timeout', async () => {
     fetchSpy.mockImplementationOnce(() =>
       new Promise((_, reject) => {
         const err = new Error('The operation was aborted');
@@ -572,37 +572,37 @@ describe('vatly.vat.validate()', () => {
         reject(err);
       }),
     );
-    const client = new Vatly({ apiKey: MOCK_API_KEY, timeout: 100 });
+    const client = new Avatcado({ apiKey: MOCK_API_KEY, timeout: 100 });
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data).toBeNull();
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error!.message).toContain('timed out');
     expect(result.error!.code).toBe('timeout');
   });
 
-  it('returns VatlyError with network_error code on fetch failure', async () => {
-    fetchSpy.mockRejectedValueOnce(new Error('getaddrinfo ENOTFOUND api.vatly.dev'));
-    const client = new Vatly(MOCK_API_KEY);
+  it('returns AvatcadoError with network_error code on fetch failure', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('getaddrinfo ENOTFOUND api.avatcado.com'));
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error!.code).toBe('network_error');
-    expect(result.error!.message).toBe('getaddrinfo ENOTFOUND api.vatly.dev');
+    expect(result.error!.message).toBe('getaddrinfo ENOTFOUND api.avatcado.com');
   });
 
-  it('returns VatlyError on non-JSON error response', async () => {
+  it('returns AvatcadoError on non-JSON error response', async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response('Internal Server Error', { status: 500, statusText: 'Internal Server Error' }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error!.message).toContain('HTTP 500');
   });
 
-  it('returns VatlyError with parse_error on non-JSON 200 response', async () => {
+  it('returns AvatcadoError with parse_error on non-JSON 200 response', async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response('<html>Gateway OK</html>', {
         status: 200,
@@ -610,23 +610,23 @@ describe('vatly.vat.validate()', () => {
         headers: { 'x-request-id': 'req_proxy' },
       }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error!.code).toBe('parse_error');
     expect(result.error!.statusCode).toBe(200);
     expect(result.error!.requestId).toBe('req_proxy');
   });
 
-  it('returns VatlyError on non-JSON 502 page', async () => {
+  it('returns AvatcadoError on non-JSON 502 page', async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response('<html><body>Bad Gateway</body></html>', { status: 502, statusText: 'Bad Gateway' }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error!.code).toBe('unknown_error');
     expect(result.error!.statusCode).toBe(502);
   });
@@ -639,7 +639,7 @@ describe('vatly.vat.validate()', () => {
         { 'x-request-id': 'req_from_header' },
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error!.requestId).toBe('req_from_header');
@@ -652,7 +652,7 @@ describe('vatly.vat.validate()', () => {
         403,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeInstanceOf(AuthenticationError);
@@ -667,7 +667,7 @@ describe('vatly.vat.validate()', () => {
         401,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeInstanceOf(AuthenticationError);
@@ -689,7 +689,7 @@ describe('vatly.vat.validate()', () => {
         422,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeInstanceOf(ValidationError);
@@ -704,7 +704,7 @@ describe('vatly.vat.validate()', () => {
         400,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeInstanceOf(ValidationError);
@@ -719,41 +719,41 @@ describe('vatly.vat.validate()', () => {
         503,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error).toBeInstanceOf(UpstreamError);
     expect(result.error!.code).toBe('upstream_member_state_unavailable');
   });
 
-  it('returns generic VatlyError on 500 internal_error', async () => {
+  it('returns generic AvatcadoError on 500 internal_error', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(
         { error: { message: 'Internal server error', code: 'internal_error' }, meta: { request_id: 'req_internal' } },
         500,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error).not.toBeInstanceOf(AuthenticationError);
     expect(result.error).not.toBeInstanceOf(ValidationError);
     expect(result.error!.code).toBe('internal_error');
     expect(result.error!.statusCode).toBe(500);
   });
 
-  it('returns generic VatlyError on 403 key_limit_reached', async () => {
+  it('returns generic AvatcadoError on 403 key_limit_reached', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(
         { error: { message: 'Monthly key limit reached', code: 'key_limit_reached' }, meta: { request_id: 'req_limit' } },
         403,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error).not.toBeInstanceOf(AuthenticationError);
     expect(result.error!.code).toBe('key_limit_reached');
   });
@@ -766,7 +766,7 @@ describe('vatly.vat.validate()', () => {
       meta: { ...VALID_RESPONSE.meta, source_status: 'live' },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(response));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.meta.sourceStatus).toBe('live');
@@ -778,7 +778,7 @@ describe('vatly.vat.validate()', () => {
       meta: { ...VALID_RESPONSE.meta, source_status: 'unavailable' },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(response));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.meta.sourceStatus).toBe('unavailable');
@@ -790,7 +790,7 @@ describe('vatly.vat.validate()', () => {
       meta: { ...VALID_RESPONSE.meta, source_status: 'degraded' },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(response));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.meta.sourceStatus).toBe('degraded');
@@ -808,7 +808,7 @@ describe('vatly.vat.validate()', () => {
         'x-burst-remaining': '15',
       }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.rateLimit.burstLimit).toBe(20);
@@ -817,7 +817,7 @@ describe('vatly.vat.validate()', () => {
 
   it('returns null for absent burst limit headers', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.rateLimit.burstLimit).toBeNull();
@@ -833,16 +833,16 @@ describe('vatly.vat.validate()', () => {
         401,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.error!.details).toBeNull();
   });
 });
 
-// ─── vatly.vat.validateBatch() ────────────────────────────────
+// ─── avatcado.vat.validateBatch() ────────────────────────────────
 
-describe('vatly.vat.validateBatch()', () => {
+describe('avatcado.vat.validateBatch()', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -892,7 +892,7 @@ describe('vatly.vat.validateBatch()', () => {
 
   it('validates a batch of VAT numbers', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(BATCH_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01', 'DE987654321'] });
 
     expect(result.error).toBeNull();
@@ -936,7 +936,7 @@ describe('vatly.vat.validateBatch()', () => {
       },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(mixedResponse));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01', 'XX000000000'] });
 
     expect(result.data!.data.results).toHaveLength(2);
@@ -959,7 +959,7 @@ describe('vatly.vat.validateBatch()', () => {
       meta: { request_id: 'req_all_fail', mode: null, request_duration_ms: 50 },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(allFailResponse));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatch({ vatNumbers: ['XX1', 'XX2'] });
 
     expect(result.data!.data.summary.failed).toBe(2);
@@ -968,7 +968,7 @@ describe('vatly.vat.validateBatch()', () => {
 
   it('sends requester_vat_number in request body', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(BATCH_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'], requesterVatNumber: 'DE987654321' });
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -977,7 +977,7 @@ describe('vatly.vat.validateBatch()', () => {
 
   it('sends cache: false in request body', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(BATCH_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'], cache: false });
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -986,7 +986,7 @@ describe('vatly.vat.validateBatch()', () => {
 
   it('sends X-Request-Id header', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(BATCH_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'], requestId: 'batch-trace-123' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
@@ -995,7 +995,7 @@ describe('vatly.vat.validateBatch()', () => {
 
   it('trims whitespace from each vatNumber', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(BATCH_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateBatch({ vatNumbers: ['  NL123456789B01  ', ' DE987654321 '] });
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -1010,7 +1010,7 @@ describe('vatly.vat.validateBatch()', () => {
         'x-ratelimit-reset': '2026-05-01T00:00:00Z',
       }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
 
     expect(result.data!.rateLimit).toEqual({
@@ -1025,7 +1025,7 @@ describe('vatly.vat.validateBatch()', () => {
 
   it('handles 50-item boundary (max batch size)', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(BATCH_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const vatNumbers = Array.from({ length: 50 }, (_, i) => `NL${String(i).padStart(9, '0')}B01`);
     const result = await client.vat.validateBatch({ vatNumbers });
 
@@ -1036,7 +1036,7 @@ describe('vatly.vat.validateBatch()', () => {
   // --- Error responses ---
 
   it('returns ValidationError for empty vatNumbers array', async () => {
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatch({ vatNumbers: [] });
 
     expect(result.data).toBeNull();
@@ -1046,7 +1046,7 @@ describe('vatly.vat.validateBatch()', () => {
   });
 
   it('returns ValidationError when batch exceeds 50', async () => {
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const vatNumbers = Array.from({ length: 51 }, (_, i) => `NL${String(i).padStart(9, '0')}B01`);
     const result = await client.vat.validateBatch({ vatNumbers });
 
@@ -1063,7 +1063,7 @@ describe('vatly.vat.validateBatch()', () => {
         403,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
 
     expect(result.error).toBeInstanceOf(AuthenticationError);
@@ -1078,7 +1078,7 @@ describe('vatly.vat.validateBatch()', () => {
         { 'retry-after': '15' },
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
 
     expect(result.error).toBeInstanceOf(RateLimitError);
@@ -1125,7 +1125,7 @@ describe('vatly.vat.validateBatch()', () => {
       meta: { request_id: 'req_multi', mode: null, request_duration_ms: 400 },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(multiCountryResponse));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatch({
       vatNumbers: ['CHE123456789MWST', 'NO123456789MVA', 'AU51824753556'],
     });
@@ -1159,7 +1159,7 @@ describe('vatly.vat.validateBatch()', () => {
       meta: { request_id: 'req_batch_ss', mode: null, request_duration_ms: 100 },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(batchWithSourceStatus));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
 
     const item = result.data!.data.results[0];
@@ -1197,9 +1197,9 @@ describe('isBatchSuccess', () => {
   });
 });
 
-// ─── vatly.vat.validateAsync() ──────────────────────────────
+// ─── avatcado.vat.validateAsync() ──────────────────────────────
 
-describe('vatly.vat.validateAsync()', () => {
+describe('avatcado.vat.validateAsync()', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -1225,7 +1225,7 @@ describe('vatly.vat.validateAsync()', () => {
 
   it('returns { data, error: null } on 202 success', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     expect(result.error).toBeNull();
@@ -1237,7 +1237,7 @@ describe('vatly.vat.validateAsync()', () => {
 
   it('sends POST to /v1/validate/async with correct JSON body', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     const [callUrl, callInit] = fetchSpy.mock.calls[0];
@@ -1249,7 +1249,7 @@ describe('vatly.vat.validateAsync()', () => {
 
   it('sends requester_vat_number in body when provided', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateAsync({
       vatNumber: 'DE123456789',
       requesterVatNumber: 'NL987654321B01',
@@ -1261,7 +1261,7 @@ describe('vatly.vat.validateAsync()', () => {
 
   it('sends cache: false in body when cache is false', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateAsync({ vatNumber: 'DE123456789', cache: false });
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -1270,7 +1270,7 @@ describe('vatly.vat.validateAsync()', () => {
 
   it('does not include cache key in body when cache is omitted', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -1279,7 +1279,7 @@ describe('vatly.vat.validateAsync()', () => {
 
   it('transforms snake_case to camelCase', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     expect(result.data!.data).toHaveProperty('requestId');
@@ -1292,17 +1292,17 @@ describe('vatly.vat.validateAsync()', () => {
 
   it('sends Authorization and User-Agent headers', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Vatly('vtly_live_mykey');
+    const client = new Avatcado('vtly_live_mykey');
     await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
     expect(headers.Authorization).toBe('Bearer vtly_live_mykey');
-    expect(headers['User-Agent']).toMatch(/^vatly-node\//);
+    expect(headers['User-Agent']).toMatch(/^avatcado-node\//);
   });
 
   it('sends X-Request-Id header when requestId option is provided', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateAsync({ vatNumber: 'DE123456789', requestId: 'my-async-trace' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
@@ -1311,7 +1311,7 @@ describe('vatly.vat.validateAsync()', () => {
 
   it('trims whitespace from vatNumber', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateAsync({ vatNumber: '  DE123456789  ' });
 
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
@@ -1326,7 +1326,7 @@ describe('vatly.vat.validateAsync()', () => {
         'x-ratelimit-reset': '2026-05-01T00:00:00Z',
       }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     expect(result.data!.rateLimit.limit).toBe(500);
@@ -1335,7 +1335,7 @@ describe('vatly.vat.validateAsync()', () => {
   });
 
   it('returns ValidationError for empty vatNumber (no network request)', async () => {
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: '' });
 
     expect(result.data).toBeNull();
@@ -1345,7 +1345,7 @@ describe('vatly.vat.validateAsync()', () => {
   });
 
   it('returns ValidationError for whitespace-only vatNumber', async () => {
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: '   ' });
 
     expect(result.data).toBeNull();
@@ -1360,7 +1360,7 @@ describe('vatly.vat.validateAsync()', () => {
         401,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     expect(result.data).toBeNull();
@@ -1376,7 +1376,7 @@ describe('vatly.vat.validateAsync()', () => {
         403,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     expect(result.error).toBeInstanceOf(AuthenticationError);
@@ -1384,17 +1384,17 @@ describe('vatly.vat.validateAsync()', () => {
     expect(result.error!.statusCode).toBe(403);
   });
 
-  it('returns VatlyError on 400 webhook_not_configured', async () => {
+  it('returns AvatcadoError on 400 webhook_not_configured', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(
         { error: { message: 'No webhook URL configured', code: 'webhook_not_configured' }, meta: { request_id: 'req_async_wh' } },
         400,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error).not.toBeInstanceOf(AuthenticationError);
     expect(result.error).not.toBeInstanceOf(ValidationError);
     expect(result.error!.code).toBe('webhook_not_configured');
@@ -1409,7 +1409,7 @@ describe('vatly.vat.validateAsync()', () => {
         { 'retry-after': '30' },
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     expect(result.error).toBeInstanceOf(RateLimitError);
@@ -1417,7 +1417,7 @@ describe('vatly.vat.validateAsync()', () => {
     expect(result.error!.statusCode).toBe(429);
   });
 
-  it('returns VatlyError on timeout', async () => {
+  it('returns AvatcadoError on timeout', async () => {
     fetchSpy.mockImplementationOnce(() =>
       new Promise((_, reject) => {
         const err = new Error('The operation was aborted');
@@ -1425,28 +1425,28 @@ describe('vatly.vat.validateAsync()', () => {
         reject(err);
       }),
     );
-    const client = new Vatly({ apiKey: MOCK_API_KEY, timeout: 100 });
+    const client = new Avatcado({ apiKey: MOCK_API_KEY, timeout: 100 });
     const result = await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     expect(result.data).toBeNull();
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error!.message).toContain('timed out');
     expect(result.error!.code).toBe('timeout');
   });
 
-  it('returns VatlyError on network error', async () => {
-    fetchSpy.mockRejectedValueOnce(new Error('getaddrinfo ENOTFOUND api.vatly.dev'));
-    const client = new Vatly(MOCK_API_KEY);
+  it('returns AvatcadoError on network error', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('getaddrinfo ENOTFOUND api.avatcado.com'));
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error!.code).toBe('network_error');
   });
 });
 
-// ─── vatly.vat.validateBatchAsync() ─────────────────────────
+// ─── avatcado.vat.validateBatchAsync() ─────────────────────────
 
-describe('vatly.vat.validateBatchAsync()', () => {
+describe('avatcado.vat.validateBatchAsync()', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -1505,7 +1505,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
 
   it('returns { data, error: null } on 202 with all accepted', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_BATCH_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatchAsync({
       vatNumbers: ['DE123456789', 'NL987654321B01'],
     });
@@ -1521,7 +1521,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
 
   it('sends POST to /v1/validate/async/batch with correct JSON body', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_BATCH_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateBatchAsync({
       vatNumbers: ['DE123456789', 'NL987654321B01'],
     });
@@ -1535,7 +1535,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
 
   it('returns response with rejected items (mixed accepted/rejected)', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_BATCH_MIXED_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatchAsync({
       vatNumbers: ['DE123456789', 'NL987654321B01', 'XX000'],
     });
@@ -1549,7 +1549,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
 
   it('returns response with batchId: null and status: completed when all rejected', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_BATCH_ALL_REJECTED_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatchAsync({
       vatNumbers: ['XX1', 'XX2'],
     });
@@ -1562,7 +1562,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
 
   it('sends requester_vat_number in body when provided', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_BATCH_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateBatchAsync({
       vatNumbers: ['DE123456789'],
       requesterVatNumber: 'NL987654321B01',
@@ -1574,7 +1574,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
 
   it('sends cache: false in body', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_BATCH_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateBatchAsync({
       vatNumbers: ['DE123456789'],
       cache: false,
@@ -1586,7 +1586,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
 
   it('does NOT enforce a client-side max size', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_BATCH_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const vatNumbers = Array.from({ length: 200 }, (_, i) => `DE${String(i).padStart(9, '0')}`);
     const result = await client.vat.validateBatchAsync({ vatNumbers });
 
@@ -1596,7 +1596,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
 
   it('trims whitespace from vatNumbers', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_BATCH_RESPONSE, 202));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.vat.validateBatchAsync({
       vatNumbers: ['  DE123456789  ', ' NL987654321B01 '],
     });
@@ -1606,7 +1606,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
   });
 
   it('returns ValidationError for empty array (no network request)', async () => {
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatchAsync({ vatNumbers: [] });
 
     expect(result.data).toBeNull();
@@ -1623,7 +1623,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
         'x-ratelimit-reset': '2026-05-01T00:00:00Z',
       }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatchAsync({ vatNumbers: ['DE123456789'] });
 
     expect(result.data!.rateLimit).toEqual({
@@ -1643,7 +1643,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
         401,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatchAsync({ vatNumbers: ['DE123456789'] });
 
     expect(result.error).toBeInstanceOf(AuthenticationError);
@@ -1657,24 +1657,24 @@ describe('vatly.vat.validateBatchAsync()', () => {
         403,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatchAsync({ vatNumbers: ['DE123456789'] });
 
     expect(result.error).toBeInstanceOf(AuthenticationError);
     expect(result.error!.code).toBe('tier_insufficient');
   });
 
-  it('returns VatlyError on 400 webhook_not_configured', async () => {
+  it('returns AvatcadoError on 400 webhook_not_configured', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(
         { error: { message: 'No webhook URL configured', code: 'webhook_not_configured' }, meta: { request_id: 'req_ab_wh' } },
         400,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatchAsync({ vatNumbers: ['DE123456789'] });
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error).not.toBeInstanceOf(AuthenticationError);
     expect(result.error).not.toBeInstanceOf(ValidationError);
     expect(result.error!.code).toBe('webhook_not_configured');
@@ -1689,7 +1689,7 @@ describe('vatly.vat.validateBatchAsync()', () => {
         { 'retry-after': '15' },
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validateBatchAsync({ vatNumbers: ['DE123456789'] });
 
     expect(result.error).toBeInstanceOf(RateLimitError);
@@ -1697,9 +1697,9 @@ describe('vatly.vat.validateBatchAsync()', () => {
   });
 });
 
-// ─── vatly.rates.list() ──────────────────────────────────────
+// ─── avatcado.rates.list() ──────────────────────────────────────
 
-describe('vatly.rates.list()', () => {
+describe('avatcado.rates.list()', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -1735,7 +1735,7 @@ describe('vatly.rates.list()', () => {
 
   it('returns list of VAT rates', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(LIST_RATES_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.rates.list();
 
     expect(result.error).toBeNull();
@@ -1758,7 +1758,7 @@ describe('vatly.rates.list()', () => {
         'x-ratelimit-reset': '2026-04-01T00:00:00Z',
       }),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.rates.list();
 
     expect(result.data!.rateLimit.limit).toBe(200);
@@ -1767,7 +1767,7 @@ describe('vatly.rates.list()', () => {
 
   it('calls GET /v1/rates', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(LIST_RATES_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.rates.list();
 
     const url = new URL(fetchSpy.mock.calls[0][0] as string);
@@ -1782,7 +1782,7 @@ describe('vatly.rates.list()', () => {
         401,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.rates.list();
 
     expect(result.error).toBeInstanceOf(AuthenticationError);
@@ -1796,7 +1796,7 @@ describe('vatly.rates.list()', () => {
         { 'retry-after': '20' },
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.rates.list();
 
     expect(result.error).toBeInstanceOf(RateLimitError);
@@ -1804,9 +1804,9 @@ describe('vatly.rates.list()', () => {
   });
 });
 
-// ─── vatly.rates.get() ───────────────────────────────────────
+// ─── avatcado.rates.get() ───────────────────────────────────────
 
-describe('vatly.rates.get()', () => {
+describe('avatcado.rates.get()', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -1832,7 +1832,7 @@ describe('vatly.rates.get()', () => {
 
   it('returns a single VAT rate by country code', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(GET_RATE_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.rates.get('NL');
 
     expect(result.error).toBeNull();
@@ -1845,7 +1845,7 @@ describe('vatly.rates.get()', () => {
 
   it('calls GET /v1/rates/{countryCode}', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(GET_RATE_RESPONSE));
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     await client.rates.get('NL');
 
     const url = new URL(fetchSpy.mock.calls[0][0] as string);
@@ -1860,23 +1860,23 @@ describe('vatly.rates.get()', () => {
         401,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.rates.get('NL');
 
     expect(result.error).toBeInstanceOf(AuthenticationError);
   });
 
-  it('returns VatlyError on 404 not_found', async () => {
+  it('returns AvatcadoError on 404 not_found', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(
         { error: { message: 'Country not found', code: 'not_found' }, meta: { request_id: 'req_rg404' } },
         404,
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.rates.get('ZZ');
 
-    expect(result.error).toBeInstanceOf(VatlyError);
+    expect(result.error).toBeInstanceOf(AvatcadoError);
     expect(result.error!.code).toBe('not_found');
     expect(result.error!.statusCode).toBe(404);
   });
@@ -1889,34 +1889,34 @@ describe('vatly.rates.get()', () => {
         { 'retry-after': '10' },
       ),
     );
-    const client = new Vatly(MOCK_API_KEY);
+    const client = new Avatcado(MOCK_API_KEY);
     const result = await client.rates.get('NL');
 
     expect(result.error).toBeInstanceOf(RateLimitError);
   });
 });
 
-// ─── VatlyError properties ───────────────────────────────────
+// ─── AvatcadoError properties ───────────────────────────────────
 
-describe('VatlyError', () => {
+describe('AvatcadoError', () => {
   it('has correct properties', () => {
-    const err = new VatlyError('test message', 'test_code', 400, 'req_123', 'https://docs.vatly.dev');
+    const err = new AvatcadoError('test message', 'test_code', 400, 'req_123', 'https://docs.avatcado.com');
     expect(err.message).toBe('test message');
     expect(err.code).toBe('test_code');
     expect(err.statusCode).toBe(400);
     expect(err.requestId).toBe('req_123');
-    expect(err.docsUrl).toBe('https://docs.vatly.dev');
-    expect(err.name).toBe('VatlyError');
+    expect(err.docsUrl).toBe('https://docs.avatcado.com');
+    expect(err.name).toBe('AvatcadoError');
     expect(err).toBeInstanceOf(Error);
   });
 
   it('requestId is null when not provided', () => {
-    const err = new VatlyError('msg', 'code', 0, null, '');
+    const err = new AvatcadoError('msg', 'code', 0, null, '');
     expect(err.requestId).toBeNull();
   });
 
   it('docsUrl is empty string when not provided', () => {
-    const err = new VatlyError('msg', 'code', 0, null, '');
+    const err = new AvatcadoError('msg', 'code', 0, null, '');
     expect(err.docsUrl).toBe('');
   });
 
@@ -1926,7 +1926,7 @@ describe('VatlyError', () => {
     const rate = new RateLimitError('msg', 'rate_limit_exceeded', 429, null, '', 30);
     const upstream = new UpstreamError('msg', 'upstream_unavailable', 503, null, '', 60);
 
-    expect(auth).toBeInstanceOf(VatlyError);
+    expect(auth).toBeInstanceOf(AvatcadoError);
     expect(auth).toBeInstanceOf(AuthenticationError);
     expect(val).toBeInstanceOf(ValidationError);
     expect(rate).toBeInstanceOf(RateLimitError);
@@ -1936,13 +1936,13 @@ describe('VatlyError', () => {
   });
 
   it('details defaults to null', () => {
-    const err = new VatlyError('msg', 'code', 400, null, '');
+    const err = new AvatcadoError('msg', 'code', 400, null, '');
     expect(err.details).toBeNull();
   });
 
   it('details carries array when set', () => {
     const details = [{ field: 'vat_number', message: 'is required' }];
-    const err = new VatlyError('msg', 'code', 422, null, '', details);
+    const err = new AvatcadoError('msg', 'code', 422, null, '', details);
     expect(err.details).toEqual([{ field: 'vat_number', message: 'is required' }]);
   });
 });

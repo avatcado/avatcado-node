@@ -1,7 +1,7 @@
 import { ValidationError } from '../errors.js';
 import { HttpClient, snakeToCamel, parseRateLimitHeaders } from '../http.js';
 import type {
-  VatlyResult,
+  AvatcadoResult,
   ValidateParams,
   ValidateResponse,
   VatValidationData,
@@ -23,7 +23,7 @@ import type {
 export class Vat {
   constructor(private readonly http: HttpClient) {}
 
-  async validate(params: ValidateParams): Promise<VatlyResult<ValidateResponse>> {
+  async validate(params: ValidateParams): Promise<AvatcadoResult<ValidateResponse>> {
     if (!params.vatNumber || !params.vatNumber.trim()) {
       return {
         data: null,
@@ -63,7 +63,7 @@ export class Vat {
     };
   }
 
-  async validateBatch(params: ValidateBatchParams): Promise<VatlyResult<ValidateBatchResponse>> {
+  async validateBatch(params: ValidateBatchParams): Promise<AvatcadoResult<ValidateBatchResponse>> {
     if (!params.vatNumbers.length) {
       return {
         data: null,
@@ -121,7 +121,7 @@ export class Vat {
     };
   }
 
-  async validateAsync(params: AsyncValidateParams): Promise<VatlyResult<AsyncValidateResponse>> {
+  async validateAsync(params: AsyncValidateParams): Promise<AvatcadoResult<AsyncValidateResponse>> {
     if (!params.vatNumber || !params.vatNumber.trim()) {
       return {
         data: null,
@@ -161,7 +161,7 @@ export class Vat {
     };
   }
 
-  async validateBatchAsync(params: AsyncBatchValidateParams): Promise<VatlyResult<AsyncBatchValidateResponse>> {
+  async validateBatchAsync(params: AsyncBatchValidateParams): Promise<AvatcadoResult<AsyncBatchValidateResponse>> {
     if (!params.vatNumbers.length) {
       return {
         data: null,
