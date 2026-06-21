@@ -1,21 +1,21 @@
-# @vatly/node
+# @avatcado/node
 
-Official TypeScript SDK for the [Vatly](https://vatly.dev) VAT validation API. Validate VAT and GST numbers across 32 countries (EU, UK, CH, LI, NO, AU), look up VAT rates by country. See the full [API reference](https://docs.vatly.dev/api-reference).
+Official TypeScript SDK for the [Avatcado](https://avatcado.com) VAT validation API. Validate VAT and GST numbers across 32 countries (EU, UK, CH, LI, NO, AU), look up VAT rates by country. See the full [API reference](https://docs.avatcado.com/api-reference).
 
 ## Installation
 
 ```bash
-npm install @vatly/node
+npm install @avatcado/node
 ```
 
 ## Quick Start
 
 ```typescript
-import Vatly from '@vatly/node';
+import Avatcado from '@avatcado/node';
 
-const vatly = new Vatly('vtly_live_...');
+const avatcado = new Avatcado('vtly_live_...');
 
-const { data, error } = await vatly.vat.validate({ vatNumber: 'NL123456789B01' });
+const { data, error } = await avatcado.vat.validate({ vatNumber: 'NL123456789B01' });
 
 if (error) {
   console.error(error.message, error.code);
@@ -26,12 +26,12 @@ if (error) {
 
 ## Usage
 
-### `vatly.vat.validate(params)`
+### `avatcado.vat.validate(params)`
 
 Validate a single VAT number. Returns `{ data, error }`.
 
 ```typescript
-const { data, error } = await vatly.vat.validate({
+const { data, error } = await avatcado.vat.validate({
   vatNumber: 'NL123456789B01',
   requesterVatNumber: 'DE987654321', // optional, for consultation number
   cache: false,                       // optional, bypass cache
@@ -51,15 +51,15 @@ if (data) {
 }
 ```
 
-### `vatly.vat.validateBatch(params)`
+### `avatcado.vat.validateBatch(params)`
 
 Validate up to 50 VAT numbers in a single request. Returns `{ data, error }`.
 
 ```typescript
-import Vatly, { isBatchSuccess } from '@vatly/node';
+import Avatcado, { isBatchSuccess } from '@avatcado/node';
 
-const vatly = new Vatly('vtly_live_...');
-const { data, error } = await vatly.vat.validateBatch({
+const avatcado = new Avatcado('vtly_live_...');
+const { data, error } = await avatcado.vat.validateBatch({
   vatNumbers: ['NL123456789B01', 'DE987654321', 'XX000'],
   requesterVatNumber: 'DE987654321', // optional
   cache: false,                       // optional
@@ -81,10 +81,10 @@ if (data) {
 
 ### Async Validation
 
-Submit a VAT number for asynchronous validation. The result is delivered to your configured [webhook URL](https://docs.vatly.dev/webhooks). Requires a Pro or Business plan.
+Submit a VAT number for asynchronous validation. The result is delivered to your configured [webhook URL](https://docs.avatcado.com/webhooks). Requires a Pro or Business plan.
 
 ```typescript
-const { data, error } = await vatly.vat.validateAsync({
+const { data, error } = await avatcado.vat.validateAsync({
   vatNumber: 'DE123456789',
 });
 
@@ -101,7 +101,7 @@ if (error) {
 Submit multiple VAT numbers for asynchronous validation. Pro tier supports up to 200 items, Business up to 1,000. Items with invalid formats are rejected immediately and never queued.
 
 ```typescript
-const { data, error } = await vatly.vat.validateBatchAsync({
+const { data, error } = await avatcado.vat.validateBatchAsync({
   vatNumbers: ['DE123456789', 'NL987654321B01', 'XX000'],
 });
 
@@ -115,12 +115,12 @@ if (error) {
 }
 ```
 
-### `vatly.rates.list()`
+### `avatcado.rates.list()`
 
 List VAT rates for all supported countries.
 
 ```typescript
-const { data, error } = await vatly.rates.list();
+const { data, error } = await avatcado.rates.list();
 
 if (data) {
   for (const rate of data.data) {
@@ -129,12 +129,12 @@ if (data) {
 }
 ```
 
-### `vatly.rates.get(countryCode)`
+### `avatcado.rates.get(countryCode)`
 
 Get VAT rates for a specific country.
 
 ```typescript
-const { data, error } = await vatly.rates.get('NL');
+const { data, error } = await avatcado.rates.get('NL');
 
 if (data) {
   console.log(data.data.standardRate);  // 21
@@ -144,12 +144,12 @@ if (data) {
 
 ## Error Handling
 
-Every method returns `{ data, error }` instead of throwing. The `error` is always a `VatlyError` (or subclass). Use `instanceof` to narrow:
+Every method returns `{ data, error }` instead of throwing. The `error` is always a `AvatcadoError` (or subclass). Use `instanceof` to narrow:
 
 ```typescript
-import Vatly, { AuthenticationError, RateLimitError, UpstreamError } from '@vatly/node';
+import Avatcado, { AuthenticationError, RateLimitError, UpstreamError } from '@avatcado/node';
 
-const { data, error } = await vatly.vat.validate({ vatNumber: 'INVALID' });
+const { data, error } = await avatcado.vat.validate({ vatNumber: 'INVALID' });
 
 if (error) {
   if (error instanceof RateLimitError) {
@@ -173,7 +173,7 @@ if (error) {
 | `ValidationError` | `invalid_vat_format`, `missing_parameter`, `validation_error`, `invalid_json` |
 | `RateLimitError` | `rate_limit_exceeded`, `burst_limit_exceeded` |
 | `UpstreamError` | `upstream_unavailable`, `upstream_member_state_unavailable` |
-| `VatlyError` | Base class for all errors, including `timeout`, `network_error`, `parse_error`, `internal_error`, `key_limit_reached` |
+| `AvatcadoError` | Base class for all errors, including `timeout`, `network_error`, `parse_error`, `internal_error`, `key_limit_reached` |
 
 ### Error Properties
 
@@ -195,8 +195,8 @@ The SDK does not retry automatically. `RateLimitError` and `UpstreamError` inclu
 Use test API keys (`vtly_test_*`) to validate without hitting real tax authorities.
 
 ```typescript
-const vatly = new Vatly('vtly_test_...');
-const { data } = await vatly.vat.validate({ vatNumber: 'NL123456789B01' });
+const avatcado = new Avatcado('vtly_test_...');
+const { data } = await avatcado.vat.validate({ vatNumber: 'NL123456789B01' });
 console.log(data?.meta.mode); // 'test'
 ```
 
@@ -209,18 +209,18 @@ console.log(data?.meta.mode); // 'test'
 
 ```typescript
 // String API key
-const vatly = new Vatly('vtly_live_...');
+const avatcado = new Avatcado('vtly_live_...');
 
 // Config object
-const vatly = new Vatly({
+const avatcado = new Avatcado({
   apiKey: 'vtly_live_...',
-  baseUrl: 'https://api.vatly.dev', // default
+  baseUrl: 'https://api.avatcado.com', // default
   timeout: 30_000,                   // ms, default
 });
 
 // Environment variable fallback
-// Set VATLY_API_KEY=vtly_live_... and pass no key:
-const vatly = new Vatly({});
+// Set AVATCADO_API_KEY=vtly_live_... and pass no key:
+const avatcado = new Avatcado({});
 ```
 
 ## TypeScript
@@ -229,8 +229,8 @@ All types are exported:
 
 ```typescript
 import type {
-  VatlyOptions,
-  VatlyResult,
+  AvatcadoOptions,
+  AvatcadoResult,
   ErrorCode,
   ClientErrorCode,
   ValidateParams,
@@ -259,8 +259,8 @@ import type {
   VatRate,
   ListRatesResponse,
   GetRateResponse,
-} from '@vatly/node';
-import { isBatchSuccess } from '@vatly/node';
+} from '@avatcado/node';
+import { isBatchSuccess } from '@avatcado/node';
 ```
 
 ## Requirements

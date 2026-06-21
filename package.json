@@ -1,7 +1,7 @@
 {
-  "name": "@vatly/node",
-  "version": "0.5.0",
-  "description": "Official TypeScript SDK for the Vatly VAT and GST validation API",
+  "name": "@avatcado/node",
+  "version": "0.6.0",
+  "description": "Official TypeScript SDK for the Avatcado VAT and GST validation API",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -40,17 +40,20 @@
     "norway",
     "australia",
     "tax",
-    "vatly",
+    "avatcado",
     "vies",
     "hmrc"
   ],
-  "author": "Vatly",
+  "author": "Avatcado",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/getvatly/vatly-node.git"
+    "url": "https://github.com/avatcado/avatcado-node.git"
   },
-  "homepage": "https://vatly.dev",
+  "homepage": "https://avatcado.com",
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "tsup": "^8.0.0",

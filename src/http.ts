@@ -1,14 +1,14 @@
 declare const __VERSION__: string;
 
 import {
-  VatlyError,
+  AvatcadoError,
   AuthenticationError,
   ValidationError,
   RateLimitError,
   UpstreamError,
 } from './errors.js';
 
-import type { VatlyResult, RateLimitInfo } from './types.js';
+import type { AvatcadoResult, RateLimitInfo } from './types.js';
 
 const AUTHENTICATION_CODES = new Set(['unauthorized', 'tier_insufficient', 'forbidden', 'key_revoked']);
 const VALIDATION_CODES = new Set(['invalid_vat_format', 'missing_parameter', 'validation_error', 'invalid_json']);
@@ -62,7 +62,7 @@ function buildError(
   docsUrl: string,
   retryAfter: number | null,
   details: Array<{ field: string; message: string }> | null,
-): VatlyError {
+): AvatcadoError {
   if (AUTHENTICATION_CODES.has(code)) {
     return new AuthenticationError(message, code, statusCode, requestId, docsUrl);
   }
@@ -75,7 +75,7 @@ function buildError(
   if (UPSTREAM_CODES.has(code)) {
     return new UpstreamError(message, code, statusCode, requestId, docsUrl, retryAfter);
   }
-  return new VatlyError(message, code, statusCode, requestId, docsUrl, details);
+  return new AvatcadoError(message, code, statusCode, requestId, docsUrl, details);
 }
 
 export interface HttpRequestOptions {
@@ -99,7 +99,7 @@ export class HttpClient {
     method: string,
     path: string,
     options?: HttpRequestOptions,
-  ): Promise<VatlyResult<{ json: unknown; headers: Headers }>> {
+  ): Promise<AvatcadoResult<{ json: unknown; headers: Headers }>> {
     const url = new URL(`${this.baseUrl}${path}`);
     if (options?.query) {
       for (const [key, value] of Object.entries(options.query)) {
@@ -110,7 +110,7 @@ export class HttpClient {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.apiKey}`,
       Accept: 'application/json',
-      'User-Agent': `vatly-node/${__VERSION__}`,
+      'User-Agent': `avatcado-node/${__VERSION__}`,
     };
     if (options?.requestId) {
       headers['X-Request-Id'] = options.requestId;
@@ -134,7 +134,7 @@ export class HttpClient {
       if (error instanceof Error && error.name === 'AbortError') {
         return {
           data: null,
-          error: new VatlyError(
+          error: new AvatcadoError(
             `Request timed out after ${this.timeout}ms`,
             'timeout',
             0,
@@ -145,7 +145,7 @@ export class HttpClient {
       }
       return {
         data: null,
-        error: new VatlyError(
+        error: new AvatcadoError(
           error instanceof Error ? error.message : 'Network request failed',
           'network_error',
           0,
@@ -167,7 +167,7 @@ export class HttpClient {
     } catch {
       return {
         data: null,
-        error: new VatlyError(
+        error: new AvatcadoError(
           `Expected JSON response but received unparseable body (HTTP ${response.status})`,
           'parse_error',
           response.status,
@@ -182,14 +182,14 @@ export class HttpClient {
 
   private async handleErrorResponse(
     response: Response,
-  ): Promise<VatlyResult<never>> {
+  ): Promise<AvatcadoResult<never>> {
     let body: Record<string, unknown> | undefined;
     try {
       body = (await response.json()) as Record<string, unknown>;
     } catch {
       return {
         data: null,
-        error: new VatlyError(
+        error: new AvatcadoError(
           `HTTP ${response.status}: ${response.statusText}`,
           'unknown_error',
           response.status,

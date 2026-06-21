@@ -1,5 +1,5 @@
 import {
-  VatlyError,
+  AvatcadoError,
   AuthenticationError,
   ValidationError,
   RateLimitError,
@@ -9,13 +9,13 @@ import {
 import { HttpClient } from './http.js';
 import { Vat } from './resources/vat.js';
 import { Rates } from './resources/rates.js';
-import type { VatlyOptions } from './types.js';
+import type { AvatcadoOptions } from './types.js';
 
-const DEFAULT_BASE_URL = 'https://api.vatly.dev';
+const DEFAULT_BASE_URL = 'https://api.avatcado.com';
 const DEFAULT_TIMEOUT = 30_000;
 
-class Vatly {
-  static VatlyError = VatlyError;
+class Avatcado {
+  static AvatcadoError = AvatcadoError;
   static AuthenticationError = AuthenticationError;
   static ValidationError = ValidationError;
   static RateLimitError = RateLimitError;
@@ -24,7 +24,7 @@ class Vatly {
   readonly vat: Vat;
   readonly rates: Rates;
 
-  constructor(keyOrConfig: string | VatlyOptions) {
+  constructor(keyOrConfig: string | AvatcadoOptions) {
     let apiKey: string;
     let baseUrl: string;
     let timeout: number;
@@ -40,12 +40,12 @@ class Vatly {
     }
 
     if (!apiKey) {
-      apiKey = process.env.VATLY_API_KEY ?? '';
+      apiKey = process.env.AVATCADO_API_KEY ?? '';
     }
 
     if (!apiKey) {
-      throw new VatlyError(
-        'No API key provided. Pass it to the constructor or set VATLY_API_KEY environment variable.',
+      throw new AvatcadoError(
+        'No API key provided. Pass it to the constructor or set AVATCADO_API_KEY environment variable.',
         'missing_api_key',
         0,
         null,
@@ -59,14 +59,14 @@ class Vatly {
   }
 }
 
-export default Vatly;
-export { Vatly, VatlyError, AuthenticationError, ValidationError, RateLimitError, UpstreamError };
+export default Avatcado;
+export { Avatcado, AvatcadoError, AuthenticationError, ValidationError, RateLimitError, UpstreamError };
 export { Vat } from './resources/vat.js';
 export { Rates } from './resources/rates.js';
 export { isBatchSuccess } from './types.js';
 export type {
-  VatlyOptions,
-  VatlyResult,
+  AvatcadoOptions,
+  AvatcadoResult,
   ErrorCode,
   ClientErrorCode,
   ValidateParams,

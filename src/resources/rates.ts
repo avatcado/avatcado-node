@@ -1,6 +1,6 @@
 import { HttpClient, snakeToCamel, parseRateLimitHeaders } from '../http.js';
 import type {
-  VatlyResult,
+  AvatcadoResult,
   ListRatesResponse,
   GetRateResponse,
   VatRate,
@@ -9,7 +9,7 @@ import type {
 export class Rates {
   constructor(private readonly http: HttpClient) {}
 
-  async list(): Promise<VatlyResult<ListRatesResponse>> {
+  async list(): Promise<AvatcadoResult<ListRatesResponse>> {
     const result = await this.http.request('GET', '/v1/rates');
     if (result.error) return result;
 
@@ -28,7 +28,7 @@ export class Rates {
     };
   }
 
-  async get(countryCode: string): Promise<VatlyResult<GetRateResponse>> {
+  async get(countryCode: string): Promise<AvatcadoResult<GetRateResponse>> {
     const result = await this.http.request('GET', `/v1/rates/${encodeURIComponent(countryCode)}`);
     if (result.error) return result;
 
