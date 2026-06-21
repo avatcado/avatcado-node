@@ -9,7 +9,7 @@ import Avatcado, {
 } from '../src/index.js';
 import type { BatchResult } from '../src/index.js';
 
-const MOCK_API_KEY = 'vtly_live_test123';
+const MOCK_API_KEY = 'avat_live_test123';
 
 function mockResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -54,7 +54,7 @@ describe('Avatcado constructor', () => {
   });
 
   it('accepts a string API key', () => {
-    const client = new Avatcado('vtly_live_mykey');
+    const client = new Avatcado('avat_live_mykey');
     expect(client.vat).toBeDefined();
     expect(client.rates).toBeDefined();
   });
@@ -69,13 +69,13 @@ describe('Avatcado constructor', () => {
   });
 
   it('falls back to AVATCADO_API_KEY env var', () => {
-    vi.stubEnv('AVATCADO_API_KEY', 'vtly_live_envkey');
+    vi.stubEnv('AVATCADO_API_KEY', 'avat_live_envkey');
     const client = new Avatcado({});
     expect(client.vat).toBeDefined();
   });
 
   it('falls back to AVATCADO_API_KEY env var when config has no apiKey', () => {
-    vi.stubEnv('AVATCADO_API_KEY', 'vtly_live_envkey');
+    vi.stubEnv('AVATCADO_API_KEY', 'avat_live_envkey');
     const client = new Avatcado({ timeout: 5000 });
     expect(client.vat).toBeDefined();
   });
@@ -160,21 +160,21 @@ describe('avatcado.vat.validate()', () => {
 
   it('sends Authorization header correctly', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
-    const client = new Avatcado('vtly_live_mykey');
+    const client = new Avatcado('avat_live_mykey');
     await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
-    expect(headers.Authorization).toBe('Bearer vtly_live_mykey');
+    expect(headers.Authorization).toBe('Bearer avat_live_mykey');
   });
 
   it('uses env var for auth when config has no apiKey', async () => {
-    vi.stubEnv('AVATCADO_API_KEY', 'vtly_live_envkey');
+    vi.stubEnv('AVATCADO_API_KEY', 'avat_live_envkey');
     fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
     const client = new Avatcado({});
     await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
-    expect(headers.Authorization).toBe('Bearer vtly_live_envkey');
+    expect(headers.Authorization).toBe('Bearer avat_live_envkey');
   });
 
   it('uses custom baseUrl', async () => {
@@ -1292,11 +1292,11 @@ describe('avatcado.vat.validateAsync()', () => {
 
   it('sends Authorization and User-Agent headers', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(ASYNC_SINGLE_RESPONSE, 202));
-    const client = new Avatcado('vtly_live_mykey');
+    const client = new Avatcado('avat_live_mykey');
     await client.vat.validateAsync({ vatNumber: 'DE123456789' });
 
     const headers = (fetchSpy.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
-    expect(headers.Authorization).toBe('Bearer vtly_live_mykey');
+    expect(headers.Authorization).toBe('Bearer avat_live_mykey');
     expect(headers['User-Agent']).toMatch(/^avatcado-node\//);
   });
 
