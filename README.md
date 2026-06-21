@@ -13,7 +13,7 @@ npm install @avatcado/node
 ```typescript
 import Avatcado from '@avatcado/node';
 
-const avatcado = new Avatcado('vtly_live_...');
+const avatcado = new Avatcado('avat_live_...');
 
 const { data, error } = await avatcado.vat.validate({ vatNumber: 'NL123456789B01' });
 
@@ -58,7 +58,7 @@ Validate up to 50 VAT numbers in a single request. Returns `{ data, error }`.
 ```typescript
 import Avatcado, { isBatchSuccess } from '@avatcado/node';
 
-const avatcado = new Avatcado('vtly_live_...');
+const avatcado = new Avatcado('avat_live_...');
 const { data, error } = await avatcado.vat.validateBatch({
   vatNumbers: ['NL123456789B01', 'DE987654321', 'XX000'],
   requesterVatNumber: 'DE987654321', // optional
@@ -192,10 +192,10 @@ The SDK does not retry automatically. `RateLimitError` and `UpstreamError` inclu
 
 ## Test Mode
 
-Use test API keys (`vtly_test_*`) to validate without hitting real tax authorities.
+Use test API keys (`avat_test_*`) to validate without hitting real tax authorities.
 
 ```typescript
-const avatcado = new Avatcado('vtly_test_...');
+const avatcado = new Avatcado('avat_test_...');
 const { data } = await avatcado.vat.validate({ vatNumber: 'NL123456789B01' });
 console.log(data?.meta.mode); // 'test'
 ```
@@ -209,17 +209,17 @@ console.log(data?.meta.mode); // 'test'
 
 ```typescript
 // String API key
-const avatcado = new Avatcado('vtly_live_...');
+const avatcado = new Avatcado('avat_live_...');
 
 // Config object
 const avatcado = new Avatcado({
-  apiKey: 'vtly_live_...',
+  apiKey: 'avat_live_...',
   baseUrl: 'https://api.avatcado.com', // default
   timeout: 30_000,                   // ms, default
 });
 
 // Environment variable fallback
-// Set AVATCADO_API_KEY=vtly_live_... and pass no key:
+// Set AVATCADO_API_KEY=avat_live_... and pass no key:
 const avatcado = new Avatcado({});
 ```
 
