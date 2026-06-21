@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+### Changed
+
+- Documentation: updated example API key prefix from `vtly_` to `avat_` to match the new Avatcado key format (README and test fixtures)
+
 ## 0.6.0
 
 Rebrand from **Vatly** to **Avatcado**. This is a breaking release — the package, public identifiers, environment variable, and default endpoint all changed. Migrate by reinstalling under the new name and renaming imports/usages.
