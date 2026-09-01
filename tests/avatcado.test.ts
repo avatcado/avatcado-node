@@ -1129,6 +1129,77 @@ describe('avatcado.vat.validateBatch()', () => {
     expect(result.data!.data.results.every((r) => !isBatchSuccess(r))).toBe(true);
   });
 
+  it('exposes error.vatNumber on failed batch items (new API shape)', async () => {
+    const response = {
+      data: {
+        results: [
+          {
+            error: { code: 'invalid_vat_format', message: 'Invalid VAT format', vat_number: 'XX000000000' },
+            meta: { vat_number: 'XX000000000' },
+          },
+        ],
+        summary: { total: 1, succeeded: 0, failed: 1 },
+      },
+      meta: { request_id: 'req_batch_echo', mode: null, request_duration_ms: 20 },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(response));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['XX000000000'] });
+
+    const item = result.data!.data.results[0];
+    expect(isBatchSuccess(item)).toBe(false);
+    if (!isBatchSuccess(item)) {
+      expect(item.error.vatNumber).toBe('XX000000000');
+      expect(item.meta.vatNumber).toBe('XX000000000');
+    }
+  });
+
+  it('prefers error.vatNumber over meta.vatNumber when both are present', async () => {
+    const response = {
+      data: {
+        results: [
+          {
+            error: { code: 'invalid_vat_format', message: 'Invalid VAT format', vat_number: 'XX000000000' },
+            meta: { vat_number: 'xx 000-000.000' },
+          },
+        ],
+        summary: { total: 1, succeeded: 0, failed: 1 },
+      },
+      meta: { request_id: 'req_batch_prefer', mode: null, request_duration_ms: 20 },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(response));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['xx 000-000.000'] });
+
+    const item = result.data!.data.results[0];
+    if (!isBatchSuccess(item)) {
+      expect(item.error.vatNumber).toBe('XX000000000');
+      expect(item.meta.vatNumber).toBe('xx 000-000.000');
+    }
+  });
+
+  it('falls back to meta.vatNumber for error.vatNumber on older API responses', async () => {
+    const response = {
+      data: {
+        results: [
+          { error: { code: 'invalid_vat_format', message: 'Invalid VAT format' }, meta: { vat_number: 'XX000000000' } },
+        ],
+        summary: { total: 1, succeeded: 0, failed: 1 },
+      },
+      meta: { request_id: 'req_batch_old', mode: null, request_duration_ms: 20 },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(response));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['XX000000000'] });
+
+    const item = result.data!.data.results[0];
+    expect(isBatchSuccess(item)).toBe(false);
+    if (!isBatchSuccess(item)) {
+      expect(item.error.vatNumber).toBe('XX000000000');
+      expect(item.error.code).toBe('invalid_vat_format');
+    }
+  });
+
   it('sends requester_vat_number in request body', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(BATCH_RESPONSE));
     const client = new Avatcado(MOCK_API_KEY);
@@ -1353,7 +1424,7 @@ describe('isBatchSuccess', () => {
 
   it('returns false for error items', () => {
     const failure: BatchResult = {
-      error: { code: 'invalid_vat_format', message: 'Invalid' },
+      error: { code: 'invalid_vat_format', message: 'Invalid', vatNumber: 'XX000' },
       meta: { vatNumber: 'XX000' },
     };
     expect(isBatchSuccess(failure)).toBe(false);
