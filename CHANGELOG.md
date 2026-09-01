@@ -2,6 +2,10 @@
 
 ## 0.7.0
 
+### Breaking Changes
+
+- **Node.js 18 is no longer supported.** `engines.node` is now `>=20.19` and CI runs on Node 20 and 22. Node 18 reached end-of-life in April 2025 and the test toolchain (Vite 7) requires Node 20.19+.
+
 ### Added
 
 - **Echoed request context on errors.** `AvatcadoError` (and every subclass) now exposes `vatNumber` and `requesterVatNumber` (`string | null`): the normalized VAT numbers from the request, echoed by the API on validation-endpoint errors (`invalid_vat_format`, `validation_error`, rate-limit, upstream and 500 errors). `null` on authentication errors, client-side errors, and responses from older API versions.
