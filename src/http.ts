@@ -62,20 +62,25 @@ function buildError(
   docsUrl: string,
   retryAfter: number | null,
   details: Array<{ field: string; message: string }> | null,
+  vatNumber: string | null,
+  requesterVatNumber: string | null,
+  validationId: string | null,
 ): AvatcadoError {
   if (AUTHENTICATION_CODES.has(code)) {
-    return new AuthenticationError(message, code, statusCode, requestId, docsUrl);
+    return new AuthenticationError(message, code, statusCode, requestId, docsUrl, vatNumber, requesterVatNumber);
   }
   if (VALIDATION_CODES.has(code)) {
-    return new ValidationError(message, code, statusCode, requestId, docsUrl, details);
+    return new ValidationError(message, code, statusCode, requestId, docsUrl, details, vatNumber, requesterVatNumber);
   }
   if (RATE_LIMIT_CODES.has(code)) {
-    return new RateLimitError(message, code, statusCode, requestId, docsUrl, retryAfter);
+    return new RateLimitError(message, code, statusCode, requestId, docsUrl, retryAfter, vatNumber, requesterVatNumber);
   }
   if (UPSTREAM_CODES.has(code)) {
-    return new UpstreamError(message, code, statusCode, requestId, docsUrl, retryAfter);
+    return new UpstreamError(
+      message, code, statusCode, requestId, docsUrl, retryAfter, vatNumber, requesterVatNumber, validationId,
+    );
   }
-  return new AvatcadoError(message, code, statusCode, requestId, docsUrl, details);
+  return new AvatcadoError(message, code, statusCode, requestId, docsUrl, details, vatNumber, requesterVatNumber);
 }
 
 export interface HttpRequestOptions {
@@ -216,10 +221,15 @@ export class HttpClient {
     const retryAfterRaw = response.headers.get('retry-after');
     const retryAfter = retryAfterRaw ? Number(retryAfterRaw) : null;
     const details = Array.isArray(error?.details) ? (error.details as Array<{ field: string; message: string }>) : null;
+    const vatNumber = typeof error?.vat_number === 'string' ? error.vat_number : null;
+    const requesterVatNumber = typeof error?.requester_vat_number === 'string' ? error.requester_vat_number : null;
+    const validationId = typeof meta?.validation_id === 'string' ? meta.validation_id : null;
 
     return {
       data: null,
-      error: buildError(message, code, response.status, requestId, docsUrl, retryAfter, details),
+      error: buildError(
+        message, code, response.status, requestId, docsUrl, retryAfter, details, vatNumber, requesterVatNumber, validationId,
+      ),
     };
   }
 }

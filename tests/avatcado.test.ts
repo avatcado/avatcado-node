@@ -532,6 +532,169 @@ describe('avatcado.vat.validate()', () => {
     expect((result.error as UpstreamError).retryAfter).toBe(60);
   });
 
+  // --- Echoed request context on errors (additive API change) ---
+
+  it('surfaces vatNumber, requesterVatNumber and validationId on 503 UpstreamError', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        {
+          error: {
+            code: 'upstream_unavailable',
+            message: 'The upstream VAT validation service is currently unavailable',
+            docs_url: 'https://docs.avatcado.com/errors/upstream_unavailable',
+            vat_number: 'SE556677889901',
+            requester_vat_number: 'NL861234567B01',
+          },
+          meta: {
+            request_id: '550e8400-e29b-41d4-a716-446655440000',
+            validation_id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+          },
+        },
+        503,
+        { 'retry-after': '60' },
+      ),
+    );
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'SE556677889901' });
+
+    expect(result.error).toBeInstanceOf(UpstreamError);
+    const err = result.error as UpstreamError;
+    expect(err.vatNumber).toBe('SE556677889901');
+    expect(err.requesterVatNumber).toBe('NL861234567B01');
+    expect(err.validationId).toBe('7c9e6679-7425-40de-944b-e07fc1f90ae7');
+    expect(err.requestId).toBe('550e8400-e29b-41d4-a716-446655440000');
+    expect(err.retryAfter).toBe(60);
+  });
+
+  it('echo fields are null on 503 from an older API response', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        { error: { message: 'VIES is unavailable', code: 'upstream_unavailable' }, meta: { request_id: 'req_old' } },
+        503,
+      ),
+    );
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.error).toBeInstanceOf(UpstreamError);
+    const err = result.error as UpstreamError;
+    expect(err.vatNumber).toBeNull();
+    expect(err.requesterVatNumber).toBeNull();
+    expect(err.validationId).toBeNull();
+  });
+
+  it('surfaces vatNumber on 429 RateLimitError', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        {
+          error: { message: 'Rate limit exceeded', code: 'rate_limit_exceeded', vat_number: 'NL123456789B01' },
+          meta: { request_id: 'req_rl_echo' },
+        },
+        429,
+        { 'retry-after': '30' },
+      ),
+    );
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.error).toBeInstanceOf(RateLimitError);
+    expect(result.error!.vatNumber).toBe('NL123456789B01');
+    expect(result.error!.requesterVatNumber).toBeNull();
+    expect((result.error as RateLimitError).retryAfter).toBe(30);
+  });
+
+  it('surfaces vatNumber and details on 422 validation_error', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        {
+          error: {
+            message: 'Validation failed',
+            code: 'validation_error',
+            vat_number: 'NL123456789B01',
+            details: [{ field: 'requester_vat_number', message: 'must be a valid EU VAT number' }],
+          },
+          meta: { request_id: 'req_val_echo' },
+        },
+        422,
+      ),
+    );
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.error).toBeInstanceOf(ValidationError);
+    expect(result.error!.vatNumber).toBe('NL123456789B01');
+    expect(result.error!.details).toEqual([{ field: 'requester_vat_number', message: 'must be a valid EU VAT number' }]);
+  });
+
+  it('surfaces vatNumber on 500 internal_error (base AvatcadoError)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        {
+          error: { message: 'Internal error', code: 'internal_error', vat_number: 'NL123456789B01' },
+          meta: { request_id: 'req_500_echo' },
+        },
+        500,
+      ),
+    );
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.error).toBeInstanceOf(AvatcadoError);
+    expect(result.error).not.toBeInstanceOf(UpstreamError);
+    expect(result.error!.vatNumber).toBe('NL123456789B01');
+  });
+
+  it('echo fields are null on 401 AuthenticationError', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        { error: { message: 'Invalid API key', code: 'unauthorized' }, meta: { request_id: 'req_auth_echo' } },
+        401,
+      ),
+    );
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.error).toBeInstanceOf(AuthenticationError);
+    expect(result.error!.vatNumber).toBeNull();
+    expect(result.error!.requesterVatNumber).toBeNull();
+  });
+
+  it('does not expose validationId on non-upstream errors even if meta carries it', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        {
+          error: { message: 'Rate limit exceeded', code: 'rate_limit_exceeded', vat_number: 'NL123456789B01' },
+          meta: { request_id: 'req_rl_vid', validation_id: '7c9e6679-7425-40de-944b-e07fc1f90ae7' },
+        },
+        429,
+        { 'retry-after': '30' },
+      ),
+    );
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.error).toBeInstanceOf(RateLimitError);
+    expect('validationId' in result.error!).toBe(false);
+  });
+
+  it('ignores non-string echo fields instead of throwing', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        {
+          error: { message: 'VIES is unavailable', code: 'upstream_unavailable', vat_number: 12345 },
+          meta: { request_id: 'req_bad_echo', validation_id: null },
+        },
+        503,
+      ),
+    );
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.error).toBeInstanceOf(UpstreamError);
+    expect((result.error as UpstreamError).vatNumber).toBeNull();
+    expect((result.error as UpstreamError).validationId).toBeNull();
+  });
+
   it('returns UpstreamError on 503 upstream_member_state_unavailable', async () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(
@@ -1944,5 +2107,31 @@ describe('AvatcadoError', () => {
     const details = [{ field: 'vat_number', message: 'is required' }];
     const err = new AvatcadoError('msg', 'code', 422, null, '', details);
     expect(err.details).toEqual([{ field: 'vat_number', message: 'is required' }]);
+  });
+
+  it('vatNumber and requesterVatNumber default to null', () => {
+    const err = new AvatcadoError('msg', 'code', 400, null, '');
+    expect(err.vatNumber).toBeNull();
+    expect(err.requesterVatNumber).toBeNull();
+  });
+
+  it('UpstreamError.validationId defaults to null', () => {
+    const upstream = new UpstreamError('msg', 'upstream_unavailable', 503, null, '', 60);
+    expect(upstream.validationId).toBeNull();
+  });
+
+  it('subclasses carry echoed request context when set', () => {
+    const val = new ValidationError('msg', 'validation_error', 422, null, '', null, 'NL123456789B01', 'DE987654321');
+    const rate = new RateLimitError('msg', 'rate_limit_exceeded', 429, null, '', 30, 'NL123456789B01');
+    const upstream = new UpstreamError(
+      'msg', 'upstream_unavailable', 503, null, '', 60, 'NL123456789B01', 'DE987654321', '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+    );
+
+    expect(val.vatNumber).toBe('NL123456789B01');
+    expect(val.requesterVatNumber).toBe('DE987654321');
+    expect(rate.vatNumber).toBe('NL123456789B01');
+    expect(rate.requesterVatNumber).toBeNull();
+    expect(upstream.vatNumber).toBe('NL123456789B01');
+    expect(upstream.validationId).toBe('7c9e6679-7425-40de-944b-e07fc1f90ae7');
   });
 });
