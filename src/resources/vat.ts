@@ -1,5 +1,6 @@
 import { ValidationError } from '../errors.js';
 import { HttpClient, snakeToCamel, parseRateLimitHeaders } from '../http.js';
+import { isBatchSuccess } from '../types.js';
 import type {
   AvatcadoResult,
   ValidateParams,
@@ -111,9 +112,16 @@ export class Vat {
       meta: BatchResponseMeta;
     };
 
+    // Older API versions only echo the VAT number in meta; newer ones put it on error.
+    const results = transformed.data.results.map((item) =>
+      isBatchSuccess(item)
+        ? item
+        : { ...item, error: { ...item.error, vatNumber: item.error.vatNumber ?? item.meta.vatNumber } },
+    );
+
     return {
       data: {
-        data: transformed.data,
+        data: { results, summary: transformed.data.summary },
         meta: transformed.meta,
         rateLimit: parseRateLimitHeaders(result.data.headers),
       },

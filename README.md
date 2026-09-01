@@ -73,11 +73,13 @@ if (data) {
     if (isBatchSuccess(item)) {
       console.log(`${item.data.vatNumber} is ${item.data.valid ? 'valid' : 'invalid'}`);
     } else {
-      console.log(`${item.meta.vatNumber} failed: ${item.error.message}`);
+      console.log(`${item.error.vatNumber} failed: ${item.error.message}`);
     }
   }
 }
 ```
+
+`item.meta.vatNumber` is deprecated in favour of `item.error.vatNumber`. The SDK fills `error.vatNumber` from `meta` for responses from older API versions, so `item.error.vatNumber` is always set.
 
 ### Async Validation
 
@@ -155,7 +157,8 @@ if (error) {
   if (error instanceof RateLimitError) {
     console.log(`Rate limited. Retry after ${error.retryAfter}s`);
   } else if (error instanceof UpstreamError) {
-    console.log(`Tax authority unavailable. Retry after ${error.retryAfter}s`);
+    console.log(`Tax authority unavailable for ${error.vatNumber}. Retry after ${error.retryAfter}s`);
+    console.log(`Recorded validation attempt: ${error.validationId}`); // null in test mode
   } else if (error instanceof AuthenticationError) {
     console.log('Invalid API key or insufficient plan');
   } else {
@@ -178,13 +181,19 @@ if (error) {
 ### Error Properties
 
 ```typescript
-error.message    // Human-readable message
-error.code       // Machine-readable code (e.g. 'unauthorized', 'rate_limit_exceeded')
-error.statusCode // HTTP status (0 for network/timeout errors)
-error.requestId  // Request ID (string or null)
-error.docsUrl    // Link to error documentation (string, empty if not provided)
-error.details    // Validation error details array (Array<{ field, message }> or null)
+error.message            // Human-readable message
+error.code               // Machine-readable code (e.g. 'unauthorized', 'rate_limit_exceeded')
+error.statusCode         // HTTP status (0 for network/timeout errors)
+error.requestId          // Request ID (string or null)
+error.docsUrl            // Link to error documentation (string, empty if not provided)
+error.details            // Validation error details (Array<{ field, message }> or null)
+error.vatNumber          // Normalized VAT number from the request, echoed on validation errors (string or null)
+error.requesterVatNumber // Normalized requester VAT number, when one was supplied (string or null)
 ```
+
+`vatNumber` / `requesterVatNumber` are echoed by the API on validation-endpoint errors (`invalid_vat_format`, `validation_error`, rate-limit, upstream and 500 errors). They are `null` on authentication errors, on client-side errors (`timeout`, `network_error`, `missing_parameter`, …), and on responses from older API versions.
+
+`UpstreamError` additionally exposes `validationId` (string or null): the ID of the recorded failed validation attempt. Present only on `upstream_unavailable` / `upstream_member_state_unavailable`, never in test mode.
 
 ### Retries
 

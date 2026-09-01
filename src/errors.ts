@@ -4,6 +4,8 @@ export class AvatcadoError extends Error {
   readonly requestId: string | null;
   readonly docsUrl: string;
   readonly details: Array<{ field: string; message: string }> | null;
+  readonly vatNumber: string | null;
+  readonly requesterVatNumber: string | null;
 
   constructor(
     message: string,
@@ -12,6 +14,8 @@ export class AvatcadoError extends Error {
     requestId: string | null,
     docsUrl: string,
     details: Array<{ field: string; message: string }> | null = null,
+    vatNumber: string | null = null,
+    requesterVatNumber: string | null = null,
   ) {
     super(message);
     this.name = 'AvatcadoError';
@@ -20,6 +24,8 @@ export class AvatcadoError extends Error {
     this.requestId = requestId;
     this.docsUrl = docsUrl;
     this.details = details;
+    this.vatNumber = vatNumber;
+    this.requesterVatNumber = requesterVatNumber;
   }
 }
 
@@ -30,8 +36,10 @@ export class AuthenticationError extends AvatcadoError {
     statusCode: number,
     requestId: string | null,
     docsUrl: string,
+    vatNumber: string | null = null,
+    requesterVatNumber: string | null = null,
   ) {
-    super(message, code, statusCode, requestId, docsUrl, null);
+    super(message, code, statusCode, requestId, docsUrl, null, vatNumber, requesterVatNumber);
     this.name = 'AuthenticationError';
   }
 }
@@ -44,8 +52,10 @@ export class ValidationError extends AvatcadoError {
     requestId: string | null,
     docsUrl: string,
     details: Array<{ field: string; message: string }> | null = null,
+    vatNumber: string | null = null,
+    requesterVatNumber: string | null = null,
   ) {
-    super(message, code, statusCode, requestId, docsUrl, details);
+    super(message, code, statusCode, requestId, docsUrl, details, vatNumber, requesterVatNumber);
     this.name = 'ValidationError';
   }
 }
@@ -60,8 +70,10 @@ export class RateLimitError extends AvatcadoError {
     requestId: string | null,
     docsUrl: string,
     retryAfter: number | null,
+    vatNumber: string | null = null,
+    requesterVatNumber: string | null = null,
   ) {
-    super(message, code, statusCode, requestId, docsUrl, null);
+    super(message, code, statusCode, requestId, docsUrl, null, vatNumber, requesterVatNumber);
     this.name = 'RateLimitError';
     this.retryAfter = retryAfter;
   }
@@ -69,6 +81,7 @@ export class RateLimitError extends AvatcadoError {
 
 export class UpstreamError extends AvatcadoError {
   readonly retryAfter: number | null;
+  readonly validationId: string | null;
 
   constructor(
     message: string,
@@ -77,9 +90,13 @@ export class UpstreamError extends AvatcadoError {
     requestId: string | null,
     docsUrl: string,
     retryAfter: number | null,
+    vatNumber: string | null = null,
+    requesterVatNumber: string | null = null,
+    validationId: string | null = null,
   ) {
-    super(message, code, statusCode, requestId, docsUrl, null);
+    super(message, code, statusCode, requestId, docsUrl, null, vatNumber, requesterVatNumber);
     this.name = 'UpstreamError';
     this.retryAfter = retryAfter;
+    this.validationId = validationId;
   }
 }

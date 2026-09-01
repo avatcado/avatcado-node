@@ -111,8 +111,11 @@ export interface BatchResultSuccess {
 }
 
 export interface BatchResultError {
-  error: { code: string; message: string };
-  meta: { vatNumber: string };
+  error: { code: string; message: string; vatNumber: string };
+  meta: {
+    /** @deprecated Use `error.vatNumber` instead. Still populated by the API; the SDK also fills `error.vatNumber` from it for older responses. */
+    vatNumber: string;
+  };
 }
 
 export type BatchResult = BatchResultSuccess | BatchResultError;

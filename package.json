@@ -1,6 +1,6 @@
 {
   "name": "@avatcado/node",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Official TypeScript SDK for the Avatcado VAT and GST validation API",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -22,7 +22,7 @@
     "dist"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "scripts": {
     "build": "tsup",
