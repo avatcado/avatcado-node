@@ -44,12 +44,32 @@ if (data) {
   console.log(data.data.company?.name);      // 'Example BV'
   console.log(data.data.consultationNumber); // null or string
   console.log(data.meta.requestId);          // 'req_abc123'
-  console.log(data.meta.sourceStatus);       // 'live' | 'unavailable' | 'degraded' | null
+  console.log(data.meta.source);             // 'vies' (registry that answered)
+  console.log(data.meta.sourceStatus);       // 'live' | 'cached' | 'unavailable' | 'degraded' | 'fallback'
+  console.log(data.meta.cached);             // false
+  console.log(data.meta.stale);              // false
+  console.log(data.meta.cachedAt);           // null unless cached is true
   console.log(data.rateLimit.remaining);     // 99
   console.log(data.rateLimit.burstLimit);    // number or null
   console.log(data.rateLimit.burstRemaining); // number or null
 }
 ```
+
+### Result source and cache status
+
+Every validation result (single validate and successful batch items) carries `meta.source`, `meta.sourceStatus`, `meta.cached`, `meta.stale` and `meta.cachedAt`.
+
+| `sourceStatus` | Meaning |
+|----------------|---------|
+| `live` | Fresh upstream lookup. `cached: false`. |
+| `cached` | Served from the 25-day cache. `cached: true`, `cachedAt` set. |
+| `unavailable` | Upstream down; the most recent cached row was served. `stale` is `true` only when that row is older than the 25-day TTL. |
+| `degraded` | Upstream answered but the result looked like a silent false negative; the prior row was served. |
+| `fallback` | VIES was down and a national tax register answered. `source` names the registry. |
+
+`meta.source` is the registry that produced the served data: `vies`, `hmrc`, `bfs`, `brreg`, `abr`, a national registry id (`dgfip`, `prh`, `kas`, `anaf`, `ares`, `vid`, `vmi`) or `test` in test mode. It is typed as `ValidationSource`, an open string with autocomplete for the known ids, because new registries can appear without an API version bump.
+
+**National registry fallback.** When VIES is unavailable for CZ, FI, FR, LT, LV, PL or RO, the API consults the national tax register and returns `sourceStatus: 'fallback'` with `source` set to the registry id (for example `anaf` for Romania). Fallback results never include `consultationNumber`, count toward your quota like any served result, and are cached normally, so the next request for the same number is a cache hit with `sourceStatus: 'cached'` and the registry as `source`. A national register reports domestic VAT registration, which can be broader than the intra-EU registration VIES reports.
 
 ### `avatcado.vat.validateBatch(params)`
 
@@ -80,6 +100,8 @@ if (data) {
 ```
 
 `item.meta.vatNumber` is deprecated in favour of `item.error.vatNumber`. The SDK fills `error.vatNumber` from `meta` for responses from older API versions, so `item.error.vatNumber` is always set.
+
+Successful items expose the same `meta.source`, `meta.sourceStatus`, `meta.cached`, `meta.stale` and `meta.cachedAt` as a single validation; see [Result source and cache status](#result-source-and-cache-status).
 
 ### Async Validation
 
@@ -212,6 +234,8 @@ console.log(data?.meta.mode); // 'test'
 | Magic VAT Number | Result |
 |-----------------|--------|
 | `NL123456789B01` | Valid, with company info |
+| `DE555555555` | Valid, served from stale cache (`sourceStatus: 'unavailable'`) |
+| `RO555555555` | Valid, national registry fallback (`sourceStatus: 'fallback'`, `source: 'anaf'`) |
 | `XX000000000` | Invalid format error |
 
 ## Configuration
@@ -261,6 +285,10 @@ import type {
   BatchItemMeta,
   BatchSummary,
   Company,
+  SourceStatus,
+  KnownValidationSource,
+  ValidationSource,
+  ValidationResultMeta,
   ResponseMeta,
   BatchResponseMeta,
   RateLimitInfo,
