@@ -2,22 +2,22 @@
 
 ## 0.8.0
 
-### Breaking Changes
-
-- **`sourceStatus` is now a five-value union and never `null`.** `ResponseMeta.sourceStatus` and `BatchItemMeta.sourceStatus` are typed `SourceStatus = 'live' | 'cached' | 'unavailable' | 'degraded' | 'fallback'`. Exhaustive `switch` statements over the previous three values must handle `'cached'` (a plain cache hit, which previously carried no `sourceStatus`) and `'fallback'` (VIES was down and the national registry named in `meta.source` answered).
+Meta now reports which registry answered and distinguishes cache hits from national-registry fallback. Additive: no breaking changes.
 
 ### Added
 
-- **`meta.source`** (`ValidationSource`) on `ResponseMeta` and `BatchItemMeta`: the registry that produced the served data (`vies`, `hmrc`, `bfs`, `brreg`, `abr`, national registries `dgfip`/`prh`/`kas`/`anaf`/`ares`/`vid`/`vmi`, or `test` in test mode). Typed as an open string with autocomplete for the known ids, since new registries can appear without an API version bump.
-- Exported types `SourceStatus`, `KnownValidationSource`, `ValidationSource` and `ValidationResultMeta` (the shared shape of `ResponseMeta` and `BatchItemMeta`).
-- README section on result source, cache status and the national registry fallback (CZ, FI, FR, LT, LV, PL, RO), plus the `DE555555555` and `RO555555555` test-mode numbers.
+- **`meta.source`** (`string | null`) on `ResponseMeta` and `BatchItemMeta`: the registry that produced the served data (`vies`, `hmrc`, `bfs`, `brreg`, `abr`, `test`, or a national registry id such as `anaf`, `ares`, `dgfip`, `kas`, `prh`, `vid`, `vmi` on fallback). A plain string, not an enum; `null` on responses from older API versions.
+- Exported types `SourceStatus` and `ValidationResultMeta` (the shared shape of `ResponseMeta` and `BatchItemMeta`).
+- README "Source and fallback" section with the `sourceStatus` / `cached` / `stale` / `cachedAt` scenario matrix, plus the `DE555555555` and `RO555555555` test-mode numbers.
 
 ### Changed
 
-- `ResponseMeta.cached` / `.stale` and `BatchItemMeta.cached` / `.stale` are now `boolean` (never `null`); the API always sends them.
-- Optional meta fields (`cachedAt`, `mode`, `requestDurationMs`) are now normalized to `null` when absent from the response. Previously they were `undefined` at runtime despite the `| null` type.
+- `sourceStatus` is widened from `'live' | 'unavailable' | 'degraded'` to `SourceStatus = 'live' | 'cached' | 'unavailable' | 'degraded' | 'fallback'`. `'cached'` marks a plain cache hit (previously reported with `sourceStatus` omitted); `'fallback'` means VIES was down for that member state and the national register answered. Exhaustive `switch` statements over the old union need the two new cases.
+- On current API responses `cached` and `stale` are always explicit booleans on `vat.validate()` results and batch success items, and `cachedAt` is present exactly when `cached` is true. The batch envelope, rates and async responses never carry the source fields. Every optional meta field is `null` when the server omits it; previously absent fields were `undefined` at runtime despite the `| null` type.
 - `sourceStatus: 'unavailable'` no longer implies `stale: true`: a cached row within the 25-day TTL served during an outage reports `stale: false`.
-- `consultationNumber` is never present on a `fallback` result, even when `requesterVatNumber` was supplied.
+- Fallback responses never carry a `consultationNumber`, and `valid` there means domestic VAT registration; see the README "Source and fallback" section.
+- A malformed 2xx body (missing `data`, `meta.request_id`, a batch item with neither `data` nor `error`, or a failed item without a VAT number in `error` or `meta`) now returns `{ data: null, error }` with `error.code === 'parse_error'` instead of throwing. A missing or non-object `meta` on a batch success item is tolerated and yields all-`null` fields (the shape `batch.completed` webhooks emit for rows recorded before the change).
+- Test fixtures now mirror the real wire shape (optional fields omitted rather than `null`); explicit compatibility tests cover older-server responses.
 
 ## 0.7.0
 
