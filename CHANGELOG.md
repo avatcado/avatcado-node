@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.0
+
+### Breaking Changes
+
+- **`sourceStatus` is now a five-value union and never `null`.** `ResponseMeta.sourceStatus` and `BatchItemMeta.sourceStatus` are typed `SourceStatus = 'live' | 'cached' | 'unavailable' | 'degraded' | 'fallback'`. Exhaustive `switch` statements over the previous three values must handle `'cached'` (a plain cache hit, which previously carried no `sourceStatus`) and `'fallback'` (VIES was down and the national registry named in `meta.source` answered).
+
+### Added
+
+- **`meta.source`** (`ValidationSource`) on `ResponseMeta` and `BatchItemMeta`: the registry that produced the served data (`vies`, `hmrc`, `bfs`, `brreg`, `abr`, national registries `dgfip`/`prh`/`kas`/`anaf`/`ares`/`vid`/`vmi`, or `test` in test mode). Typed as an open string with autocomplete for the known ids, since new registries can appear without an API version bump.
+- Exported types `SourceStatus`, `KnownValidationSource`, `ValidationSource` and `ValidationResultMeta` (the shared shape of `ResponseMeta` and `BatchItemMeta`).
+- README section on result source, cache status and the national registry fallback (CZ, FI, FR, LT, LV, PL, RO), plus the `DE555555555` and `RO555555555` test-mode numbers.
+
+### Changed
+
+- `ResponseMeta.cached` / `.stale` and `BatchItemMeta.cached` / `.stale` are now `boolean` (never `null`); the API always sends them.
+- Optional meta fields (`cachedAt`, `mode`, `requestDurationMs`) are now normalized to `null` when absent from the response. Previously they were `undefined` at runtime despite the `| null` type.
+- `sourceStatus: 'unavailable'` no longer implies `stale: true`: a cached row within the 25-day TTL served during an outage reports `stale: false`.
+- `consultationNumber` is never present on a `fallback` result, even when `requesterVatNumber` was supplied.
+
 ## 0.7.0
 
 ### Breaking Changes
