@@ -42,14 +42,33 @@ if (data) {
   console.log(data.data.valid);              // true
   console.log(data.data.vatNumber);          // 'NL123456789B01'
   console.log(data.data.company?.name);      // 'Example BV'
-  console.log(data.data.consultationNumber); // null or string
+  console.log(data.data.consultationNumber); // null or string (EU/UK only; never on fallback)
   console.log(data.meta.requestId);          // 'req_abc123'
-  console.log(data.meta.sourceStatus);       // 'live' | 'unavailable' | 'degraded' | null
+  console.log(data.meta.source);             // 'vies', 'hmrc', ... or e.g. 'anaf' on fallback
+  console.log(data.meta.sourceStatus);       // 'live' | 'cached' | 'unavailable' | 'degraded' | 'fallback'
+  console.log(data.meta.cached);             // true/false (null on older API versions)
+  console.log(data.meta.stale);              // true/false (null on older API versions)
+  console.log(data.meta.cachedAt);           // ISO timestamp when cached, else null
   console.log(data.rateLimit.remaining);     // 99
   console.log(data.rateLimit.burstLimit);    // number or null
   console.log(data.rateLimit.burstRemaining); // number or null
 }
 ```
+
+#### Source and fallback
+
+`meta.source` names the registry that produced the served data: `vies`, `hmrc`, `bfs`, `brreg`, `abr`, or `test` in test mode. When VIES is down for a member state, the API consults that country's national register before falling back to stale cache; `source` then names the register (`anaf`, `ares`, `dgfip`, `kas`, `prh`, `vid`, `vmi`) and `sourceStatus` is `'fallback'`. `source` is a plain string, not an enum.
+
+| Scenario | `sourceStatus` | `cached` | `stale` | `cachedAt` |
+|---|---|---|---|---|
+| Fresh upstream result | `'live'` | `false` | `false` | `null` |
+| Cache hit (within 25-day TTL) | `'cached'` | `true` | `false` | set |
+| Upstream down, cached row within TTL served | `'unavailable'` | `true` | `false` | set |
+| Upstream down, row beyond TTL served | `'unavailable'` | `true` | `true` | set |
+| VIES returned a suspected false negative, prior row served | `'degraded'` | `true` | varies | set |
+| VIES down, national register answered | `'fallback'` | `false` | `false` | `null` |
+
+Fallback responses never carry a `consultationNumber` (national registers cannot issue one, even with `requesterVatNumber`), and `valid` there means the number is registered for domestic VAT; for Poland an active (`Czynny`) taxpayer is valid even without VAT-UE registration. Lithuania (`vmi`) and Latvia (`vid`) return the company name only, so `company.address` is `null`. Fallback and stale responses count toward your quota because data was served; only `503` upstream errors are refunded. API versions that predate these fields omit them, in which case they are `null`.
 
 ### `avatcado.vat.validateBatch(params)`
 
@@ -80,6 +99,8 @@ if (data) {
 ```
 
 `item.meta.vatNumber` is deprecated in favour of `item.error.vatNumber`. The SDK fills `error.vatNumber` from `meta` for responses from older API versions, so `item.error.vatNumber` is always set.
+
+Successful items expose the same `meta.source`, `meta.sourceStatus`, `meta.cached`, `meta.stale` and `meta.cachedAt` as a single validation; see [Source and fallback](#source-and-fallback). Items never carry `requestId` or `mode`; those live on the batch envelope.
 
 ### Async Validation
 
@@ -213,6 +234,10 @@ console.log(data?.meta.mode); // 'test'
 |-----------------|--------|
 | `NL123456789B01` | Valid, with company info |
 | `XX000000000` | Invalid format error |
+| `DE555555555` | Valid, served from stale cache: `sourceStatus` `'unavailable'`, `stale` `true` |
+| `RO555555555` | Valid via national registry fallback: `source` `'anaf'`, `sourceStatus` `'fallback'`, no consultation number |
+
+See the [test mode docs](https://docs.avatcado.com/test-mode) for the full list of magic numbers.
 
 ## Configuration
 
@@ -261,6 +286,8 @@ import type {
   BatchItemMeta,
   BatchSummary,
   Company,
+  SourceStatus,
+  ValidationResultMeta,
   ResponseMeta,
   BatchResponseMeta,
   RateLimitInfo,

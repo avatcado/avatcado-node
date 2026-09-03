@@ -104,7 +104,7 @@ export class HttpClient {
     method: string,
     path: string,
     options?: HttpRequestOptions,
-  ): Promise<AvatcadoResult<{ json: unknown; headers: Headers }>> {
+  ): Promise<AvatcadoResult<{ json: unknown; headers: Headers; status: number }>> {
     const url = new URL(`${this.baseUrl}${path}`);
     if (options?.query) {
       for (const [key, value] of Object.entries(options.query)) {
@@ -182,7 +182,7 @@ export class HttpClient {
       };
     }
 
-    return { data: { json, headers: response.headers }, error: null };
+    return { data: { json, headers: response.headers, status: response.status }, error: null };
   }
 
   private async handleErrorResponse(

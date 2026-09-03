@@ -72,6 +72,8 @@ export type {
   ValidateParams,
   Company,
   VatValidationData,
+  SourceStatus,
+  ValidationResultMeta,
   ResponseMeta,
   BatchResponseMeta,
   RateLimitInfo,

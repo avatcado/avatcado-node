@@ -64,14 +64,42 @@ export interface VatValidationData {
   requestedAt: string;
 }
 
-export interface ResponseMeta {
-  requestId: string;
+/**
+ * How the served result was obtained.
+ * - `live`: fresh upstream lookup.
+ * - `cached`: served from the 25-day cache.
+ * - `unavailable`: upstream down, most recent cached row served (check `stale`).
+ * - `degraded`: upstream answered but the result looked like a silent false negative; prior row served.
+ * - `fallback`: VIES was down and the national registry named in `source` answered.
+ */
+export type SourceStatus = 'live' | 'cached' | 'unavailable' | 'degraded' | 'fallback';
+
+/**
+ * Meta shared by every validation result: single validate and successful batch items.
+ *
+ * The current API always sends `source`, `sourceStatus`, `cached` and `stale`, and
+ * `cachedAt` exactly when `cached` is true. Every field is `null` when the server omits
+ * it, e.g. on responses from older API versions.
+ */
+export interface ValidationResultMeta {
+  /**
+   * Registry that produced the served data: `vies`, `hmrc`, `bfs`, `brreg`, `abr`,
+   * a national registry (`dgfip`, `prh`, `kas`, `anaf`, `ares`, `vid`, `vmi`) when
+   * `sourceStatus` is `'fallback'`, or `test` in test mode. A plain string, not an enum.
+   */
+  source: string | null;
+  sourceStatus: SourceStatus | null;
   cached: boolean | null;
-  cachedAt: string | null;
+  /** True when the served cache row is older than the 25-day TTL. Only possible on upstream failure. */
   stale: boolean | null;
+  /** ISO 8601 timestamp of when the served row was fetched. Present exactly when `cached` is true. */
+  cachedAt: string | null;
+}
+
+export interface ResponseMeta extends ValidationResultMeta {
+  requestId: string;
   mode: 'test' | null;
   requestDurationMs: number | null;
-  sourceStatus: 'live' | 'unavailable' | 'degraded' | null;
 }
 
 export interface RateLimitInfo {
@@ -98,12 +126,7 @@ export interface ValidateBatchParams {
   requestId?: string;
 }
 
-export interface BatchItemMeta {
-  cached: boolean | null;
-  cachedAt: string | null;
-  stale: boolean | null;
-  sourceStatus: 'live' | 'unavailable' | 'degraded' | null;
-}
+export type BatchItemMeta = ValidationResultMeta;
 
 export interface BatchResultSuccess {
   data: VatValidationData;

@@ -36,12 +36,11 @@ const VALID_RESPONSE = {
   },
   meta: {
     request_id: 'req_abc123',
-    cached: null,
-    cached_at: null,
-    stale: null,
-    mode: null,
     request_duration_ms: 150,
-    source_status: null,
+    source: 'vies',
+    source_status: 'live',
+    cached: false,
+    stale: false,
   },
 };
 
@@ -296,23 +295,37 @@ describe('avatcado.vat.validate()', () => {
     expect(result.data!.rateLimit.retryAfter).toBeNull();
   });
 
+  it('surfaces source and cache fields on a live result', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(VALID_RESPONSE));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data!.meta.source).toBe('vies');
+    expect(result.data!.meta.sourceStatus).toBe('live');
+    expect(result.data!.meta.cached).toBe(false);
+    expect(result.data!.meta.stale).toBe(false);
+    expect(result.data!.meta.cachedAt).toBeNull();
+    expect(result.data!.meta.mode).toBeNull();
+  });
+
   it('transforms cached metadata fields', async () => {
     const cachedResponse = {
       data: VALID_RESPONSE.data,
       meta: {
         request_id: 'req_cached',
-        cached: true,
-        cached_at: '2026-03-18T11:00:00Z',
-        stale: false,
-        mode: null,
         request_duration_ms: 5,
-        source_status: null,
+        source: 'vies',
+        source_status: 'cached',
+        cached: true,
+        stale: false,
+        cached_at: '2026-03-18T11:00:00Z',
       },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(cachedResponse));
     const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
+    expect(result.data!.meta.sourceStatus).toBe('cached');
     expect(result.data!.meta.cached).toBe(true);
     expect(result.data!.meta.cachedAt).toBe('2026-03-18T11:00:00Z');
     expect(result.data!.meta.stale).toBe(false);
@@ -324,12 +337,12 @@ describe('avatcado.vat.validate()', () => {
       data: VALID_RESPONSE.data,
       meta: {
         request_id: 'req_test',
-        mode: 'test',
-        cached: null,
-        cached_at: null,
-        stale: null,
         request_duration_ms: 10,
-        source_status: null,
+        mode: 'test',
+        source: 'test',
+        source_status: 'live',
+        cached: false,
+        stale: false,
       },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(testResponse));
@@ -337,6 +350,7 @@ describe('avatcado.vat.validate()', () => {
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.meta.mode).toBe('test');
+    expect(result.data!.meta.source).toBe('test');
     expect(result.data!.meta.requestId).toBe('req_test');
   });
 
@@ -345,20 +359,166 @@ describe('avatcado.vat.validate()', () => {
       data: VALID_RESPONSE.data,
       meta: {
         request_id: 'req_stale',
-        cached: true,
-        cached_at: '2026-03-17T11:00:00Z',
-        stale: true,
-        mode: null,
         request_duration_ms: 2,
-        source_status: null,
+        source: 'vies',
+        source_status: 'unavailable',
+        cached: true,
+        stale: true,
+        cached_at: '2026-03-17T11:00:00Z',
       },
     };
     fetchSpy.mockResolvedValueOnce(mockResponse(staleResponse));
     const client = new Avatcado(MOCK_API_KEY);
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
+    expect(result.data!.meta.sourceStatus).toBe('unavailable');
     expect(result.data!.meta.stale).toBe(true);
     expect(result.data!.meta.cached).toBe(true);
+    expect(result.data!.meta.cachedAt).toBe('2026-03-17T11:00:00Z');
+  });
+
+  it('reports stale false when an in-TTL cached row is served during an outage', async () => {
+    const response = {
+      data: VALID_RESPONSE.data,
+      meta: {
+        request_id: 'req_outage',
+        request_duration_ms: 3,
+        source: 'vies',
+        source_status: 'unavailable',
+        cached: true,
+        stale: false,
+        cached_at: '2026-03-18T09:00:00Z',
+      },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(response));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data!.meta.sourceStatus).toBe('unavailable');
+    expect(result.data!.meta.stale).toBe(false);
+    expect(result.data!.meta.cached).toBe(true);
+  });
+
+  it('normalizes absent optional meta fields to null', async () => {
+    const sparseResponse = {
+      data: VALID_RESPONSE.data,
+      meta: { request_id: 'req_sparse', source: 'vies', source_status: 'live' },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(sparseResponse));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data!.meta.requestId).toBe('req_sparse');
+    expect(result.data!.meta.cached).toBeNull();
+    expect(result.data!.meta.stale).toBeNull();
+    expect(result.data!.meta.cachedAt).toBeNull();
+    expect(result.data!.meta.mode).toBeNull();
+    expect(result.data!.meta.requestDurationMs).toBeNull();
+  });
+
+  it('returns null source fields on responses from older API versions', async () => {
+    const olderResponse = {
+      data: VALID_RESPONSE.data,
+      meta: { request_id: 'req_old', request_duration_ms: 12 },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(olderResponse));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data!.meta.requestId).toBe('req_old');
+    expect(result.data!.meta.source).toBeNull();
+    expect(result.data!.meta.sourceStatus).toBeNull();
+    expect(result.data!.meta.cached).toBeNull();
+    expect(result.data!.meta.stale).toBeNull();
+  });
+
+  it('returns a parse_error instead of throwing when meta is missing', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse({ data: VALID_RESPONSE.data }));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data).toBeNull();
+    expect(result.error).toBeInstanceOf(AvatcadoError);
+    expect(result.error!.code).toBe('parse_error');
+    expect(result.error!.message).toContain('request_id');
+  });
+
+  it('returns a parse_error instead of throwing when data is missing', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse({ meta: VALID_RESPONSE.meta }));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data).toBeNull();
+    expect(result.error!.code).toBe('parse_error');
+    expect(result.error!.message).toContain('data');
+  });
+
+  it('surfaces national registry fallback meta', async () => {
+    const fallbackResponse = {
+      data: {
+        valid: true,
+        vat_number: 'RO12345678',
+        country_code: 'RO',
+        company: { name: 'Test SRL', address: 'Bucharest, Romania' },
+        requested_at: '2026-09-03T12:00:00Z',
+      },
+      meta: {
+        request_id: 'req_fallback',
+        request_duration_ms: 900,
+        source: 'anaf',
+        source_status: 'fallback',
+        cached: false,
+        stale: false,
+      },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(fallbackResponse));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({
+      vatNumber: 'RO12345678',
+      requesterVatNumber: 'DE987654321',
+    });
+
+    expect(result.data!.meta.sourceStatus).toBe('fallback');
+    expect(result.data!.meta.source).toBe('anaf');
+    expect(result.data!.meta.cached).toBe(false);
+    expect(result.data!.meta.stale).toBe(false);
+    expect(result.data!.meta.cachedAt).toBeNull();
+    expect(result.data!.data.consultationNumber).toBeUndefined();
+  });
+
+  it('reports the registry as source on a cache hit after a fallback', async () => {
+    const response = {
+      data: VALID_RESPONSE.data,
+      meta: {
+        request_id: 'req_fallback_cached',
+        request_duration_ms: 4,
+        source: 'anaf',
+        source_status: 'cached',
+        cached: true,
+        stale: false,
+        cached_at: '2026-09-03T12:00:00Z',
+      },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(response));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'RO12345678' });
+
+    expect(result.data!.meta.source).toBe('anaf');
+    expect(result.data!.meta.sourceStatus).toBe('cached');
+    expect(result.data!.meta.cached).toBe(true);
+    expect(result.data!.meta.cachedAt).toBe('2026-09-03T12:00:00Z');
+  });
+
+  it('passes unknown source ids through unchanged', async () => {
+    const response = {
+      data: VALID_RESPONSE.data,
+      meta: { ...VALID_RESPONSE.meta, source: 'newreg' },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(response));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data!.meta.source).toBe('newreg');
   });
 
   // --- Rate limit headers ---
@@ -923,41 +1083,20 @@ describe('avatcado.vat.validate()', () => {
 
   // --- sourceStatus ---
 
-  it('surfaces sourceStatus "live" from response meta', async () => {
-    const response = {
-      data: VALID_RESPONSE.data,
-      meta: { ...VALID_RESPONSE.meta, source_status: 'live' },
-    };
-    fetchSpy.mockResolvedValueOnce(mockResponse(response));
-    const client = new Avatcado(MOCK_API_KEY);
-    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+  it.each(['live', 'cached', 'unavailable', 'degraded', 'fallback'] as const)(
+    'surfaces sourceStatus "%s" from response meta',
+    async (status) => {
+      const response = {
+        data: VALID_RESPONSE.data,
+        meta: { ...VALID_RESPONSE.meta, source_status: status },
+      };
+      fetchSpy.mockResolvedValueOnce(mockResponse(response));
+      const client = new Avatcado(MOCK_API_KEY);
+      const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
-    expect(result.data!.meta.sourceStatus).toBe('live');
-  });
-
-  it('surfaces sourceStatus "unavailable" from response meta', async () => {
-    const response = {
-      data: VALID_RESPONSE.data,
-      meta: { ...VALID_RESPONSE.meta, source_status: 'unavailable' },
-    };
-    fetchSpy.mockResolvedValueOnce(mockResponse(response));
-    const client = new Avatcado(MOCK_API_KEY);
-    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
-
-    expect(result.data!.meta.sourceStatus).toBe('unavailable');
-  });
-
-  it('surfaces sourceStatus "degraded" from response meta', async () => {
-    const response = {
-      data: VALID_RESPONSE.data,
-      meta: { ...VALID_RESPONSE.meta, source_status: 'degraded' },
-    };
-    fetchSpy.mockResolvedValueOnce(mockResponse(response));
-    const client = new Avatcado(MOCK_API_KEY);
-    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
-
-    expect(result.data!.meta.sourceStatus).toBe('degraded');
-  });
+      expect(result.data!.meta.sourceStatus).toBe(status);
+    },
+  );
 
   // --- Burst limit headers ---
 
@@ -1030,7 +1169,7 @@ describe('avatcado.vat.validateBatch()', () => {
             consultation_number: null,
             requested_at: '2026-03-18T12:00:00Z',
           },
-          meta: { cached: null, cached_at: null, stale: null, source_status: null },
+          meta: { source: 'vies', source_status: 'live', cached: false, stale: false },
         },
         {
           data: {
@@ -1041,7 +1180,7 @@ describe('avatcado.vat.validateBatch()', () => {
             consultation_number: null,
             requested_at: '2026-03-18T12:00:01Z',
           },
-          meta: { cached: null, cached_at: null, stale: null, source_status: null },
+          meta: { source: 'vies', source_status: 'live', cached: false, stale: false },
         },
       ],
       summary: { total: 2, succeeded: 2, failed: 0 },
@@ -1083,7 +1222,7 @@ describe('avatcado.vat.validateBatch()', () => {
               consultation_number: null,
               requested_at: '2026-03-18T12:00:00Z',
             },
-            meta: { cached: null, cached_at: null, stale: null, source_status: null },
+            meta: { source: 'vies', source_status: 'live', cached: false, stale: false },
           },
           {
             error: { code: 'invalid_vat_format', message: 'Invalid VAT format' },
@@ -1331,7 +1470,7 @@ describe('avatcado.vat.validateBatch()', () => {
               company: { name: 'Swiss AG', address: 'Zurich' },
               requested_at: '2026-03-18T12:00:00Z',
             },
-            meta: { cached: null, cached_at: null, stale: null, source_status: 'live' },
+            meta: { source: 'vies', source_status: 'live', cached: false, stale: false },
           },
           {
             data: {
@@ -1341,7 +1480,7 @@ describe('avatcado.vat.validateBatch()', () => {
               company: { name: 'Norse AS', address: 'Oslo' },
               requested_at: '2026-03-18T12:00:01Z',
             },
-            meta: { cached: null, cached_at: null, stale: null, source_status: 'live' },
+            meta: { source: 'vies', source_status: 'live', cached: false, stale: false },
           },
           {
             data: {
@@ -1351,7 +1490,7 @@ describe('avatcado.vat.validateBatch()', () => {
               company: { name: 'Aussie Pty', address: 'Sydney' },
               requested_at: '2026-03-18T12:00:02Z',
             },
-            meta: { cached: null, cached_at: null, stale: null, source_status: 'live' },
+            meta: { source: 'vies', source_status: 'live', cached: false, stale: false },
           },
         ],
         summary: { total: 3, succeeded: 3, failed: 0 },
@@ -1385,7 +1524,7 @@ describe('avatcado.vat.validateBatch()', () => {
               consultation_number: null,
               requested_at: '2026-03-18T12:00:00Z',
             },
-            meta: { cached: null, cached_at: null, stale: null, source_status: 'live' },
+            meta: { source: 'vies', source_status: 'live', cached: false, stale: false },
           },
         ],
         summary: { total: 1, succeeded: 1, failed: 0 },
@@ -1399,8 +1538,176 @@ describe('avatcado.vat.validateBatch()', () => {
     const item = result.data!.data.results[0];
     expect(isBatchSuccess(item)).toBe(true);
     if (isBatchSuccess(item)) {
+      expect(item.meta.source).toBe('vies');
       expect(item.meta.sourceStatus).toBe('live');
+      expect(item.meta.cached).toBe(false);
+      expect(item.meta.stale).toBe(false);
+      expect(item.meta.cachedAt).toBeNull();
     }
+  });
+
+  it('surfaces per-item source and fallback status in batch results', async () => {
+    const batch = {
+      data: {
+        results: [
+          {
+            data: {
+              valid: true,
+              vat_number: 'NL123456789B01',
+              country_code: 'NL',
+              company: { name: 'Test BV', address: 'Amsterdam' },
+              consultation_number: null,
+              requested_at: '2026-03-18T12:00:00Z',
+            },
+            meta: {
+              source: 'vies',
+              source_status: 'cached',
+              cached: true,
+              stale: false,
+              cached_at: '2026-03-18T10:00:00Z',
+            },
+          },
+          {
+            data: {
+              valid: true,
+              vat_number: 'RO12345678',
+              country_code: 'RO',
+              company: { name: 'Test SRL', address: 'Bucharest' },
+              requested_at: '2026-09-03T12:00:00Z',
+            },
+            meta: { source: 'anaf', source_status: 'fallback', cached: false, stale: false },
+          },
+        ],
+        summary: { total: 2, succeeded: 2, failed: 0 },
+      },
+      meta: { request_id: 'req_batch_fb', request_duration_ms: 950 },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(batch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01', 'RO12345678'] });
+
+    const [nl, ro] = result.data!.data.results;
+    expect(isBatchSuccess(nl) && nl.meta.source).toBe('vies');
+    expect(isBatchSuccess(nl) && nl.meta.sourceStatus).toBe('cached');
+    expect(isBatchSuccess(nl) && nl.meta.cachedAt).toBe('2026-03-18T10:00:00Z');
+    expect(isBatchSuccess(ro) && ro.meta.source).toBe('anaf');
+    expect(isBatchSuccess(ro) && ro.meta.sourceStatus).toBe('fallback');
+    expect(isBatchSuccess(ro) && ro.meta.cached).toBe(false);
+    expect(isBatchSuccess(ro) && ro.meta.cachedAt).toBeNull();
+  });
+
+  it('normalizes absent batch meta fields to null', async () => {
+    const sparseBatch = {
+      data: {
+        results: [
+          {
+            data: {
+              valid: true,
+              vat_number: 'NL123456789B01',
+              country_code: 'NL',
+              company: null,
+              requested_at: '2026-03-18T12:00:00Z',
+            },
+            meta: { source: 'vies', source_status: 'live' },
+          },
+        ],
+        summary: { total: 1, succeeded: 1, failed: 0 },
+      },
+      meta: { request_id: 'req_batch_sparse' },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(sparseBatch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
+
+    expect(result.data!.meta.requestId).toBe('req_batch_sparse');
+    expect(result.data!.meta.mode).toBeNull();
+    expect(result.data!.meta.requestDurationMs).toBeNull();
+    const item = result.data!.data.results[0];
+    expect(isBatchSuccess(item) && item.meta.cached).toBeNull();
+    expect(isBatchSuccess(item) && item.meta.stale).toBeNull();
+    expect(isBatchSuccess(item) && item.meta.cachedAt).toBeNull();
+  });
+
+  it('returns null source fields for batch items from older API versions', async () => {
+    const olderBatch = {
+      data: {
+        results: [
+          {
+            data: BATCH_RESPONSE.data.results[0].data,
+            meta: { cached: null, cached_at: null, stale: null, source_status: null },
+          },
+        ],
+        summary: { total: 1, succeeded: 1, failed: 0 },
+      },
+      meta: { request_id: 'req_batch_old_meta', request_duration_ms: 100 },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(olderBatch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
+
+    const item = result.data!.data.results[0];
+    expect(isBatchSuccess(item)).toBe(true);
+    if (isBatchSuccess(item)) {
+      expect(item.meta.source).toBeNull();
+      expect(item.meta.sourceStatus).toBeNull();
+      expect(item.meta.cached).toBeNull();
+      expect(item.meta.stale).toBeNull();
+      expect(item.meta.cachedAt).toBeNull();
+    }
+  });
+
+  it('tolerates a missing meta on a batch success item', async () => {
+    const batch = {
+      data: {
+        results: [{ data: BATCH_RESPONSE.data.results[0].data }],
+        summary: { total: 1, succeeded: 1, failed: 0 },
+      },
+      meta: { request_id: 'req_batch_no_meta' },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(batch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
+
+    const item = result.data!.data.results[0];
+    expect(isBatchSuccess(item)).toBe(true);
+    if (isBatchSuccess(item)) {
+      expect(item.data.vatNumber).toBe('NL123456789B01');
+      expect(item.meta).toEqual({ source: null, sourceStatus: null, cached: null, stale: null, cachedAt: null });
+    }
+  });
+
+  it('returns a parse_error for a failed item without a VAT number in error or meta', async () => {
+    const batch = {
+      data: {
+        results: [{ error: { code: 'invalid_vat_format', message: 'Invalid VAT format' } }],
+        summary: { total: 1, succeeded: 0, failed: 1 },
+      },
+      meta: { request_id: 'req_batch_bad_error' },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(batch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['XX000'] });
+
+    expect(result.data).toBeNull();
+    expect(result.error!.code).toBe('parse_error');
+    expect(result.error!.message).toContain('vat_number');
+  });
+
+  it('returns a parse_error for a batch item with neither data nor error', async () => {
+    const batch = {
+      data: {
+        results: [{ meta: {} }],
+        summary: { total: 1, succeeded: 1, failed: 0 },
+      },
+      meta: { request_id: 'req_batch_malformed' },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(batch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
+
+    expect(result.data).toBeNull();
+    expect(result.error).toBeInstanceOf(AvatcadoError);
+    expect(result.error!.code).toBe('parse_error');
   });
 });
 
@@ -1417,7 +1724,7 @@ describe('isBatchSuccess', () => {
         consultationNumber: null,
         requestedAt: '2026-03-18T12:00:00Z',
       },
-      meta: { cached: null, cachedAt: null, stale: null, sourceStatus: null },
+      meta: { source: 'vies', sourceStatus: 'live', cached: false, stale: false, cachedAt: null },
     };
     expect(isBatchSuccess(success)).toBe(true);
   });
