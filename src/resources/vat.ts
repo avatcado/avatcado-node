@@ -1,6 +1,5 @@
 import { ValidationError } from '../errors.js';
 import { HttpClient, snakeToCamel, parseRateLimitHeaders } from '../http.js';
-import { isBatchSuccess } from '../types.js';
 import type {
   AvatcadoResult,
   ValidateParams,
@@ -12,6 +11,9 @@ import type {
   ValidateBatchResponse,
   BatchResult,
   BatchSummary,
+  SourceStatus,
+  ValidationSource,
+  ValidationResultMeta,
   AsyncValidateParams,
   AsyncValidateResponse,
   AsyncValidateData,
@@ -20,6 +22,71 @@ import type {
   AsyncBatchValidateResponse,
   AsyncBatchValidateData,
 } from '../types.js';
+
+// Wire shapes after snakeToCamel. Optional fields are absent on the wire when
+// not applicable (e.g. cached_at when cached is false); the SDK normalizes them to null.
+interface WireResultMeta {
+  source: ValidationSource;
+  sourceStatus: SourceStatus;
+  cached?: boolean | null;
+  stale?: boolean | null;
+  cachedAt?: string | null;
+}
+
+interface WireResponseMeta extends WireResultMeta {
+  requestId: string;
+  mode?: 'test' | null;
+  requestDurationMs?: number | null;
+}
+
+interface WireBatchResponseMeta {
+  requestId: string;
+  mode?: 'test' | null;
+  requestDurationMs?: number | null;
+}
+
+type WireBatchResult =
+  | { data: VatValidationData; meta: WireResultMeta }
+  | { error: { code: string; message: string; vatNumber?: string }; meta?: { vatNumber: string } };
+
+function normalizeResultMeta(meta: WireResultMeta): ValidationResultMeta {
+  return {
+    source: meta.source,
+    sourceStatus: meta.sourceStatus,
+    cached: meta.cached ?? false,
+    stale: meta.stale ?? false,
+    cachedAt: meta.cachedAt ?? null,
+  };
+}
+
+function normalizeResponseMeta(meta: WireResponseMeta): ResponseMeta {
+  return {
+    ...normalizeResultMeta(meta),
+    requestId: meta.requestId,
+    mode: meta.mode ?? null,
+    requestDurationMs: meta.requestDurationMs ?? null,
+  };
+}
+
+function normalizeBatchResponseMeta(meta: WireBatchResponseMeta): BatchResponseMeta {
+  return {
+    requestId: meta.requestId,
+    mode: meta.mode ?? null,
+    requestDurationMs: meta.requestDurationMs ?? null,
+  };
+}
+
+function normalizeBatchResult(item: WireBatchResult): BatchResult {
+  if ('data' in item) {
+    return { data: item.data, meta: normalizeResultMeta(item.meta) };
+  }
+  // Older API versions only echo the VAT number in meta; newer ones put it on error.
+  const vatNumber = item.error.vatNumber ?? item.meta?.vatNumber ?? '';
+  return {
+    error: { ...item.error, vatNumber },
+    meta: { vatNumber: item.meta?.vatNumber ?? vatNumber },
+  };
+}
 
 export class Vat {
   constructor(private readonly http: HttpClient) {}
@@ -51,13 +118,13 @@ export class Vat {
 
     const transformed = snakeToCamel(result.data.json) as {
       data: VatValidationData;
-      meta: ResponseMeta;
+      meta: WireResponseMeta;
     };
 
     return {
       data: {
         data: transformed.data,
-        meta: transformed.meta,
+        meta: normalizeResponseMeta(transformed.meta),
         rateLimit: parseRateLimitHeaders(result.data.headers),
       },
       error: null,
@@ -108,21 +175,17 @@ export class Vat {
     if (result.error) return result;
 
     const transformed = snakeToCamel(result.data.json) as {
-      data: { results: BatchResult[]; summary: BatchSummary };
-      meta: BatchResponseMeta;
+      data: { results: WireBatchResult[]; summary: BatchSummary };
+      meta: WireBatchResponseMeta;
     };
-
-    // Older API versions only echo the VAT number in meta; newer ones put it on error.
-    const results = transformed.data.results.map((item) =>
-      isBatchSuccess(item)
-        ? item
-        : { ...item, error: { ...item.error, vatNumber: item.error.vatNumber ?? item.meta.vatNumber } },
-    );
 
     return {
       data: {
-        data: { results, summary: transformed.data.summary },
-        meta: transformed.meta,
+        data: {
+          results: transformed.data.results.map(normalizeBatchResult),
+          summary: transformed.data.summary,
+        },
+        meta: normalizeBatchResponseMeta(transformed.meta),
         rateLimit: parseRateLimitHeaders(result.data.headers),
       },
       error: null,
