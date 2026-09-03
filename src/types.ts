@@ -75,34 +75,24 @@ export interface VatValidationData {
 export type SourceStatus = 'live' | 'cached' | 'unavailable' | 'degraded' | 'fallback';
 
 /**
- * Registry ids the API emits today. `source` is an open string: new registries
- * can appear without an API version bump, so always handle unknown values.
+ * Meta shared by every validation result: single validate and successful batch items.
+ *
+ * The current API always sends `source`, `sourceStatus`, `cached` and `stale`, and
+ * `cachedAt` exactly when `cached` is true. Every field is `null` when the server omits
+ * it, e.g. on responses from older API versions.
  */
-export type KnownValidationSource =
-  | 'vies'
-  | 'hmrc'
-  | 'bfs'
-  | 'brreg'
-  | 'abr'
-  | 'dgfip'
-  | 'prh'
-  | 'kas'
-  | 'anaf'
-  | 'ares'
-  | 'vid'
-  | 'vmi'
-  | 'test';
-export type ValidationSource = KnownValidationSource | (string & {});
-
-/** Meta present on every validation result: single validate and successful batch items. */
 export interface ValidationResultMeta {
-  /** Registry that produced the served data. */
-  source: ValidationSource;
-  sourceStatus: SourceStatus;
-  cached: boolean;
+  /**
+   * Registry that produced the served data: `vies`, `hmrc`, `bfs`, `brreg`, `abr`,
+   * a national registry (`dgfip`, `prh`, `kas`, `anaf`, `ares`, `vid`, `vmi`) when
+   * `sourceStatus` is `'fallback'`, or `test` in test mode. A plain string, not an enum.
+   */
+  source: string | null;
+  sourceStatus: SourceStatus | null;
+  cached: boolean | null;
   /** True when the served cache row is older than the 25-day TTL. Only possible on upstream failure. */
-  stale: boolean;
-  /** ISO 8601 timestamp of when the served row was fetched. `null` unless `cached` is true. */
+  stale: boolean | null;
+  /** ISO 8601 timestamp of when the served row was fetched. Present exactly when `cached` is true. */
   cachedAt: string | null;
 }
 

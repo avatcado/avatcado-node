@@ -409,11 +409,48 @@ describe('avatcado.vat.validate()', () => {
     const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
 
     expect(result.data!.meta.requestId).toBe('req_sparse');
-    expect(result.data!.meta.cached).toBe(false);
-    expect(result.data!.meta.stale).toBe(false);
+    expect(result.data!.meta.cached).toBeNull();
+    expect(result.data!.meta.stale).toBeNull();
     expect(result.data!.meta.cachedAt).toBeNull();
     expect(result.data!.meta.mode).toBeNull();
     expect(result.data!.meta.requestDurationMs).toBeNull();
+  });
+
+  it('returns null source fields on responses from older API versions', async () => {
+    const olderResponse = {
+      data: VALID_RESPONSE.data,
+      meta: { request_id: 'req_old', request_duration_ms: 12 },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(olderResponse));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data!.meta.requestId).toBe('req_old');
+    expect(result.data!.meta.source).toBeNull();
+    expect(result.data!.meta.sourceStatus).toBeNull();
+    expect(result.data!.meta.cached).toBeNull();
+    expect(result.data!.meta.stale).toBeNull();
+  });
+
+  it('returns a parse_error instead of throwing when meta is missing', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse({ data: VALID_RESPONSE.data }));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data).toBeNull();
+    expect(result.error).toBeInstanceOf(AvatcadoError);
+    expect(result.error!.code).toBe('parse_error');
+    expect(result.error!.message).toContain('request_id');
+  });
+
+  it('returns a parse_error instead of throwing when data is missing', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse({ meta: VALID_RESPONSE.meta }));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validate({ vatNumber: 'NL123456789B01' });
+
+    expect(result.data).toBeNull();
+    expect(result.error!.code).toBe('parse_error');
+    expect(result.error!.message).toContain('data');
   });
 
   it('surfaces national registry fallback meta', async () => {
@@ -1586,9 +1623,91 @@ describe('avatcado.vat.validateBatch()', () => {
     expect(result.data!.meta.mode).toBeNull();
     expect(result.data!.meta.requestDurationMs).toBeNull();
     const item = result.data!.data.results[0];
-    expect(isBatchSuccess(item) && item.meta.cached).toBe(false);
-    expect(isBatchSuccess(item) && item.meta.stale).toBe(false);
+    expect(isBatchSuccess(item) && item.meta.cached).toBeNull();
+    expect(isBatchSuccess(item) && item.meta.stale).toBeNull();
     expect(isBatchSuccess(item) && item.meta.cachedAt).toBeNull();
+  });
+
+  it('returns null source fields for batch items from older API versions', async () => {
+    const olderBatch = {
+      data: {
+        results: [
+          {
+            data: BATCH_RESPONSE.data.results[0].data,
+            meta: { cached: null, cached_at: null, stale: null, source_status: null },
+          },
+        ],
+        summary: { total: 1, succeeded: 1, failed: 0 },
+      },
+      meta: { request_id: 'req_batch_old_meta', request_duration_ms: 100 },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(olderBatch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
+
+    const item = result.data!.data.results[0];
+    expect(isBatchSuccess(item)).toBe(true);
+    if (isBatchSuccess(item)) {
+      expect(item.meta.source).toBeNull();
+      expect(item.meta.sourceStatus).toBeNull();
+      expect(item.meta.cached).toBeNull();
+      expect(item.meta.stale).toBeNull();
+      expect(item.meta.cachedAt).toBeNull();
+    }
+  });
+
+  it('tolerates a missing meta on a batch success item', async () => {
+    const batch = {
+      data: {
+        results: [{ data: BATCH_RESPONSE.data.results[0].data }],
+        summary: { total: 1, succeeded: 1, failed: 0 },
+      },
+      meta: { request_id: 'req_batch_no_meta' },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(batch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
+
+    const item = result.data!.data.results[0];
+    expect(isBatchSuccess(item)).toBe(true);
+    if (isBatchSuccess(item)) {
+      expect(item.data.vatNumber).toBe('NL123456789B01');
+      expect(item.meta).toEqual({ source: null, sourceStatus: null, cached: null, stale: null, cachedAt: null });
+    }
+  });
+
+  it('returns a parse_error for a failed item without a VAT number in error or meta', async () => {
+    const batch = {
+      data: {
+        results: [{ error: { code: 'invalid_vat_format', message: 'Invalid VAT format' } }],
+        summary: { total: 1, succeeded: 0, failed: 1 },
+      },
+      meta: { request_id: 'req_batch_bad_error' },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(batch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['XX000'] });
+
+    expect(result.data).toBeNull();
+    expect(result.error!.code).toBe('parse_error');
+    expect(result.error!.message).toContain('vat_number');
+  });
+
+  it('returns a parse_error for a batch item with neither data nor error', async () => {
+    const batch = {
+      data: {
+        results: [{ meta: {} }],
+        summary: { total: 1, succeeded: 1, failed: 0 },
+      },
+      meta: { request_id: 'req_batch_malformed' },
+    };
+    fetchSpy.mockResolvedValueOnce(mockResponse(batch));
+    const client = new Avatcado(MOCK_API_KEY);
+    const result = await client.vat.validateBatch({ vatNumbers: ['NL123456789B01'] });
+
+    expect(result.data).toBeNull();
+    expect(result.error).toBeInstanceOf(AvatcadoError);
+    expect(result.error!.code).toBe('parse_error');
   });
 });
 

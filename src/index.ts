@@ -73,8 +73,6 @@ export type {
   Company,
   VatValidationData,
   SourceStatus,
-  KnownValidationSource,
-  ValidationSource,
   ValidationResultMeta,
   ResponseMeta,
   BatchResponseMeta,
