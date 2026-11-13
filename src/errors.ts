@@ -6,6 +6,11 @@ export class AvatcadoError extends Error {
   readonly details: Array<{ field: string; message: string }> | null;
   readonly vatNumber: string | null;
   readonly requesterVatNumber: string | null;
+  /**
+   * The normalized EORI number from the request, echoed by the API on errors from
+   * `eori.validate()`. `null` on every other error.
+   */
+  readonly eoriNumber: string | null = null;
 
   constructor(
     message: string,

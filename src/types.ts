@@ -9,6 +9,7 @@ export type AvatcadoResult<T> = { data: T; error: null } | { data: null; error: 
 export type ErrorCode =
   | 'missing_parameter'
   | 'invalid_vat_format'
+  | 'invalid_eori_format'
   | 'unauthorized'
   | 'rate_limit_exceeded'
   | 'burst_limit_exceeded'
@@ -100,6 +101,62 @@ export interface ResponseMeta extends ValidationResultMeta {
   requestId: string;
   mode: 'test' | null;
   requestDurationMs: number | null;
+}
+
+// --- EORI ---
+
+export interface EoriValidateParams {
+  /** The EORI number to check. Spaces, dots, dashes and casing are normalized by the API. */
+  eoriNumber: string;
+  /** Pass `false` to skip the cache and ask the register again. */
+  cache?: boolean;
+  requestId?: string;
+}
+
+export interface EoriValidationData {
+  valid: boolean;
+  /** The normalized number that was checked. A Greek number sent with `EL` comes back with `GR`. */
+  eoriNumber: string;
+  /** The two-letter prefix (`XI` for Northern Ireland). */
+  countryCode: string;
+  /**
+   * Trader name and address from the register. `null` when the number is not valid, and `null`
+   * for a valid number whose holder did not consent to publication, which is common.
+   */
+  company: Company | null;
+  requestedAt: string;
+}
+
+/**
+ * How an EORI answer was obtained.
+ * - `live`: fresh check with the register.
+ * - `cached`: served from the cache.
+ * - `unavailable`: the register was down and the most recent stored answer was served (check `stale`).
+ */
+export type EoriSourceStatus = 'live' | 'cached' | 'unavailable';
+
+/** Every optional field is `null` when the server omits it. */
+export interface EoriResponseMeta {
+  requestId: string;
+  mode: 'test' | null;
+  requestDurationMs: number | null;
+  /**
+   * Register that produced the answer: `ec_eos` (the European Commission's EORI validation
+   * service, for EU and XI numbers), `hmrc` (GB numbers), or `test` in test mode. A plain string.
+   */
+  source: string | null;
+  sourceStatus: EoriSourceStatus | null;
+  cached: boolean | null;
+  /** True when the served stored answer is older than the cache window. Only possible when the register is down. */
+  stale: boolean | null;
+  /** ISO 8601 timestamp of when the served answer was first stored. Present exactly when `cached` is true. */
+  cachedAt: string | null;
+}
+
+export interface EoriValidateResponse {
+  data: EoriValidationData;
+  meta: EoriResponseMeta;
+  rateLimit: RateLimitInfo;
 }
 
 export interface RateLimitInfo {

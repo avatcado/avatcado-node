@@ -11,7 +11,13 @@ import {
 import type { AvatcadoResult, RateLimitInfo } from './types.js';
 
 const AUTHENTICATION_CODES = new Set(['unauthorized', 'tier_insufficient', 'forbidden', 'key_revoked']);
-const VALIDATION_CODES = new Set(['invalid_vat_format', 'missing_parameter', 'validation_error', 'invalid_json']);
+const VALIDATION_CODES = new Set([
+  'invalid_vat_format',
+  'invalid_eori_format',
+  'missing_parameter',
+  'validation_error',
+  'invalid_json',
+]);
 const RATE_LIMIT_CODES = new Set(['rate_limit_exceeded', 'burst_limit_exceeded']);
 const UPSTREAM_CODES = new Set(['upstream_unavailable', 'upstream_member_state_unavailable']);
 
@@ -225,11 +231,14 @@ export class HttpClient {
     const requesterVatNumber = typeof error?.requester_vat_number === 'string' ? error.requester_vat_number : null;
     const validationId = typeof meta?.validation_id === 'string' ? meta.validation_id : null;
 
-    return {
-      data: null,
-      error: buildError(
-        message, code, response.status, requestId, docsUrl, retryAfter, details, vatNumber, requesterVatNumber, validationId,
-      ),
-    };
+    const builtError = buildError(
+      message, code, response.status, requestId, docsUrl, retryAfter, details, vatNumber, requesterVatNumber, validationId,
+    );
+    // Set after construction so the error classes keep their positional constructor signatures.
+    if (typeof error?.eori_number === 'string') {
+      (builtError as { eoriNumber: string | null }).eoriNumber = error.eori_number;
+    }
+
+    return { data: null, error: builtError };
   }
 }

@@ -165,6 +165,31 @@ if (data) {
 }
 ```
 
+### `avatcado.eori.validate(params)`
+
+Check an EORI number (the customs identifier a business needs to import or export goods). GB numbers are checked with HMRC; numbers from the 27 EU member states and XI are checked with the European Commission's EORI validation service. An EORI number is a separate registration from a VAT number.
+
+```typescript
+const { data, error } = await avatcado.eori.validate({
+  eoriNumber: 'GB123456789000',
+  cache: false, // optional: skip the cache and ask the register again
+});
+
+if (data) {
+  console.log(data.data.valid);          // true
+  console.log(data.data.eoriNumber);     // 'GB123456789000'
+  console.log(data.data.company?.name);  // undefined when the holder published no details
+  console.log(data.meta.source);         // 'hmrc' or 'ec_eos'
+  console.log(data.meta.sourceStatus);   // 'live', 'cached' or 'unavailable'
+}
+```
+
+`company` is `null` for many valid numbers: both registers publish a name and address only when the holder consented. Spaces, dots, dashes and casing in `eoriNumber` are normalized by the API, and a Greek number sent with the VAT prefix `EL` is checked under the EORI prefix `GR`.
+
+When the register is down, the API serves the most recent stored answer with `sourceStatus` `'unavailable'`, or returns an `UpstreamError` when it has none. With `cache: false` a stored answer is never served.
+
+A malformed number returns a `ValidationError` with code `invalid_eori_format`. One number per call; there is no batch or async variant.
+
 ## Error Handling
 
 Every method returns `{ data, error }` instead of throwing. The `error` is always a `AvatcadoError` (or subclass). Use `instanceof` to narrow:
@@ -210,6 +235,7 @@ error.docsUrl            // Link to error documentation (string, empty if not pr
 error.details            // Validation error details (Array<{ field, message }> or null)
 error.vatNumber          // Normalized VAT number from the request, echoed on validation errors (string or null)
 error.requesterVatNumber // Normalized requester VAT number, when one was supplied (string or null)
+error.eoriNumber          // Normalized EORI number, echoed on errors from eori.validate() (string or null)
 ```
 
 `vatNumber` / `requesterVatNumber` are echoed by the API on validation-endpoint errors (`invalid_vat_format`, `validation_error`, rate-limit, upstream and 500 errors). They are `null` on authentication errors, on client-side errors (`timeout`, `network_error`, `missing_parameter`, …), and on responses from older API versions.
@@ -236,6 +262,8 @@ console.log(data?.meta.mode); // 'test'
 | `XX000000000` | Invalid format error |
 | `DE555555555` | Valid, served from stale cache: `sourceStatus` `'unavailable'`, `stale` `true` |
 | `RO555555555` | Valid via national registry fallback: `source` `'anaf'`, `sourceStatus` `'fallback'`, no consultation number |
+
+`eori.validate()` has its own test numbers: `NL111111111` (valid, with company), `NL222222222` (valid, `company` `null`), `NL000000000` (not valid) and `NL999999999` (`upstream_unavailable`).
 
 See the [test mode docs](https://docs.avatcado.com/test-mode) for the full list of magic numbers.
 
