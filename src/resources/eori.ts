@@ -1,5 +1,6 @@
-import { AvatcadoError, ValidationError } from '../errors.js';
+import { ValidationError } from '../errors.js';
 import { HttpClient, snakeToCamel, parseRateLimitHeaders } from '../http.js';
+import { asRecord, requireField, toParseError } from '../parse.js';
 import type {
   AvatcadoResult,
   EoriResponseMeta,
@@ -22,20 +23,6 @@ interface WireEoriMeta {
   cachedAt?: string | null;
 }
 
-function asRecord<T extends object>(value: unknown): T {
-  return (typeof value === 'object' && value !== null && !Array.isArray(value) ? value : {}) as T;
-}
-
-function parseError(field: string, context: string, response: { headers: Headers; status: number }): AvatcadoError {
-  return new AvatcadoError(
-    `Missing required field "${field}" in ${context}`,
-    'parse_error',
-    response.status,
-    response.headers.get('x-request-id'),
-    '',
-  );
-}
-
 export class Eori {
   constructor(private readonly http: HttpClient) {}
 
@@ -52,8 +39,8 @@ export class Eori {
     }
 
     const query: Record<string, string> = { eori_number: params.eoriNumber.trim() };
-    if (params.cache === false) {
-      query.cache = 'false';
+    if (typeof params.cache === 'boolean') {
+      query.cache = String(params.cache);
     }
 
     const result = await this.http.request('GET', '/v1/eori/validate', {
@@ -66,27 +53,27 @@ export class Eori {
     const wireMeta = asRecord<WireEoriMeta>(payload.meta);
 
     // A malformed 2xx body is reported as a parse_error result, never thrown.
-    if (payload.data === null || payload.data === undefined) {
-      return { data: null, error: parseError('data', 'EoriValidateResponse', result.data) };
+    try {
+      const meta: EoriResponseMeta = {
+        requestId: requireField(wireMeta.requestId, 'request_id', 'EoriResponseMeta'),
+        mode: wireMeta.mode ?? null,
+        requestDurationMs: wireMeta.requestDurationMs ?? null,
+        source: wireMeta.source ?? null,
+        sourceStatus: wireMeta.sourceStatus ?? null,
+        cached: wireMeta.cached ?? null,
+        stale: wireMeta.stale ?? null,
+        cachedAt: wireMeta.cachedAt ?? null,
+      };
+      return {
+        data: {
+          data: requireField(payload.data, 'data', 'EoriValidateResponse'),
+          meta,
+          rateLimit: parseRateLimitHeaders(result.data.headers),
+        },
+        error: null,
+      };
+    } catch (err) {
+      return { data: null, error: toParseError(err, result.data) };
     }
-    if (wireMeta.requestId === null || wireMeta.requestId === undefined) {
-      return { data: null, error: parseError('request_id', 'EoriResponseMeta', result.data) };
-    }
-
-    const meta: EoriResponseMeta = {
-      requestId: wireMeta.requestId,
-      mode: wireMeta.mode ?? null,
-      requestDurationMs: wireMeta.requestDurationMs ?? null,
-      source: wireMeta.source ?? null,
-      sourceStatus: wireMeta.sourceStatus ?? null,
-      cached: wireMeta.cached ?? null,
-      stale: wireMeta.stale ?? null,
-      cachedAt: wireMeta.cachedAt ?? null,
-    };
-
-    return {
-      data: { data: payload.data, meta, rateLimit: parseRateLimitHeaders(result.data.headers) },
-      error: null,
-    };
   }
 }

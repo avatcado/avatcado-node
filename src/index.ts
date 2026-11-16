@@ -30,6 +30,8 @@ class Avatcado {
     let apiKey: string;
     let baseUrl: string;
     let timeout: number;
+    let maxRetries: number | undefined;
+    let maxRetryDelay: number | undefined;
 
     if (typeof keyOrConfig === 'string') {
       apiKey = keyOrConfig;
@@ -39,6 +41,8 @@ class Avatcado {
       apiKey = keyOrConfig.apiKey ?? '';
       baseUrl = keyOrConfig.baseUrl ?? DEFAULT_BASE_URL;
       timeout = keyOrConfig.timeout ?? DEFAULT_TIMEOUT;
+      maxRetries = keyOrConfig.maxRetries;
+      maxRetryDelay = keyOrConfig.maxRetryDelay;
     }
 
     if (!apiKey) {
@@ -55,7 +59,7 @@ class Avatcado {
       );
     }
 
-    const http = new HttpClient(apiKey, baseUrl, timeout);
+    const http = new HttpClient(apiKey, baseUrl, timeout, { maxRetries, maxRetryDelay });
     this.vat = new Vat(http);
     this.rates = new Rates(http);
     this.eori = new Eori(http);
@@ -70,6 +74,8 @@ export { Eori } from './resources/eori.js';
 export { isBatchSuccess } from './types.js';
 export type {
   AvatcadoOptions,
+  RequestOptions,
+  ValidationFlags,
   AvatcadoResult,
   ErrorCode,
   ClientErrorCode,

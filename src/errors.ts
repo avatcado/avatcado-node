@@ -11,6 +11,11 @@ export class AvatcadoError extends Error {
    * `eori.validate()`. `null` on every other error.
    */
   readonly eoriNumber: string | null = null;
+  /**
+   * Seconds the API asks you to wait before retrying, from the `Retry-After` header.
+   * `null` when the response carried none, and on client-side errors.
+   */
+  readonly retryAfter: number | null = null;
 
   constructor(
     message: string,

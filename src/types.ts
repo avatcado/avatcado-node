@@ -39,15 +39,54 @@ export type ClientErrorCode =
 export interface AvatcadoOptions {
   apiKey?: string;
   baseUrl?: string;
+  /** Per-attempt timeout in milliseconds, covering the request and the response body. Default 30000. */
   timeout?: number;
+  /**
+   * Extra attempts after a retryable failure. Default 0: the SDK does not retry.
+   *
+   * When set, a burst-limit 429 and a 503 are retried on every method. A timeout, a network
+   * error, a 502 and a 504 are retried on GET requests only (`vat.validate`, `rates.*`,
+   * `eori.validate`), because a POST may already have been accepted. The SDK waits for
+   * `Retry-After` when the API sends it, otherwise 0.5 s doubling up to 8 s.
+   */
+  maxRetries?: number;
+  /**
+   * Longest wait before one retry, in milliseconds. Default 60000. An error whose
+   * `Retry-After` is longer (the monthly quota, a register outage) is returned at once.
+   */
+  maxRetryDelay?: number;
+}
+
+/** Options accepted by calls that take no other parameters. */
+export interface RequestOptions {
+  /** Sent as `X-Request-Id` and echoed back in `meta.requestId`. */
+  requestId?: string;
+}
+
+/**
+ * Flags shared by the four VAT validation calls. Leave a flag unset to get the API default,
+ * which depends on the request: both default to `true`, and both default to `false` when
+ * `requesterVatNumber` is supplied.
+ */
+export interface ValidationFlags {
+  /**
+   * `false` skips the cache and forces a fresh lookup. `true` next to `requesterVatNumber`
+   * opts back in to cached and stored results.
+   */
+  cache?: boolean;
+  /**
+   * `false` stops a VIES outage from being answered by a national register. `true` next to
+   * `requesterVatNumber` accepts a register answer, which never carries a consultation number.
+   * Applies on Pro and Business plans; ignored on Free.
+   */
+  fallback?: boolean;
 }
 
 // --- Validate ---
 
-export interface ValidateParams {
+export interface ValidateParams extends ValidationFlags {
   vatNumber: string;
   requesterVatNumber?: string;
-  cache?: boolean;
   requestId?: string;
 }
 
@@ -85,8 +124,9 @@ export type SourceStatus = 'live' | 'cached' | 'unavailable' | 'degraded' | 'fal
 export interface ValidationResultMeta {
   /**
    * Registry that produced the served data: `vies`, `hmrc`, `bfs`, `brreg`, `abr`,
-   * a national registry (`dgfip`, `prh`, `kas`, `anaf`, `ares`, `vid`, `vmi`) when
-   * `sourceStatus` is `'fallback'`, or `test` in test mode. A plain string, not an enum.
+   * a national registry (`anaf`, `ares`, `dgfip`, `fssr`, `furs`, `kbo`, `porezna`, `prh`,
+   * `rik`, `vid`) when `sourceStatus` is `'fallback'`, or `test` in test mode. A plain
+   * string, not an enum: new registries appear without an SDK release.
    */
   source: string | null;
   sourceStatus: SourceStatus | null;
@@ -108,7 +148,7 @@ export interface ResponseMeta extends ValidationResultMeta {
 export interface EoriValidateParams {
   /** The EORI number to check. Spaces, dots, dashes and casing are normalized by the API. */
   eoriNumber: string;
-  /** Pass `false` to skip the cache and ask the register again. */
+  /** Pass `false` to skip the cache and ask the register again. Unset means the API default (`true`). */
   cache?: boolean;
   requestId?: string;
 }
@@ -176,10 +216,9 @@ export interface ValidateResponse {
 
 // --- Batch Validate ---
 
-export interface ValidateBatchParams {
+export interface ValidateBatchParams extends ValidationFlags {
   vatNumbers: string[];
   requesterVatNumber?: string;
-  cache?: boolean;
   requestId?: string;
 }
 
@@ -224,10 +263,9 @@ export interface ValidateBatchResponse {
 
 // --- Async Validate ---
 
-export interface AsyncValidateParams {
+export interface AsyncValidateParams extends ValidationFlags {
   vatNumber: string;
   requesterVatNumber?: string;
-  cache?: boolean;
   requestId?: string;
 }
 
@@ -249,10 +287,9 @@ export interface AsyncValidateResponse {
 
 // --- Async Batch Validate ---
 
-export interface AsyncBatchValidateParams {
+export interface AsyncBatchValidateParams extends ValidationFlags {
   vatNumbers: string[];
   requesterVatNumber?: string;
-  cache?: boolean;
   requestId?: string;
 }
 

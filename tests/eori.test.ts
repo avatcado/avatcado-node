@@ -93,7 +93,7 @@ describe('avatcado.eori.validate()', () => {
     expect(url.searchParams.get('eori_number')).toBe('gb 123.456.789 000');
   });
 
-  it('sends cache=false only when the cache is turned off', async () => {
+  it('sends the cache flag exactly as the caller set it, and nothing when unset', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => mockResponse(VALID_RESPONSE));
     const avatcado = new Avatcado(MOCK_API_KEY);
 
@@ -103,7 +103,7 @@ describe('avatcado.eori.validate()', () => {
 
     const params = fetchMock.mock.calls.map(([url]) => new URL(url as string).searchParams);
     expect(params[0].get('cache')).toBe('false');
-    expect(params[1].has('cache')).toBe(false);
+    expect(params[1].get('cache')).toBe('true');
     expect(params[2].has('cache')).toBe(false);
   });
 
