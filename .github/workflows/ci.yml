@@ -21,5 +21,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # tests/live.test.ts runs against the real API in test mode when this secret exists,
+      # and is skipped when it does not (forks, or before the secret is added).
       - run: npm test
+        env:
+          AVATCADO_TEST_API_KEY: ${{ secrets.AVATCADO_TEST_API_KEY }}
       - run: npm run build

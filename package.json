@@ -1,7 +1,7 @@
 {
   "name": "@avatcado/node",
-  "version": "0.8.0",
-  "description": "Official TypeScript SDK for the Avatcado VAT and GST validation API",
+  "version": "0.9.0",
+  "description": "Official TypeScript SDK for the Avatcado VAT, GST and EORI validation API",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -33,6 +33,7 @@
   "keywords": [
     "vat",
     "gst",
+    "eori",
     "validation",
     "eu",
     "uk",

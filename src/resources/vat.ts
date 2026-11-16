@@ -1,5 +1,6 @@
-import { AvatcadoError, ValidationError } from '../errors.js';
+import { ValidationError } from '../errors.js';
 import { HttpClient, snakeToCamel, parseRateLimitHeaders } from '../http.js';
+import { asRecord, requireArray, requireField, toParseError } from '../parse.js';
 import type {
   AvatcadoResult,
   ValidateParams,
@@ -12,6 +13,7 @@ import type {
   BatchResult,
   BatchSummary,
   SourceStatus,
+  ValidationFlags,
   ValidationResultMeta,
   AsyncValidateParams,
   AsyncValidateResponse,
@@ -20,6 +22,7 @@ import type {
   AsyncBatchValidateParams,
   AsyncBatchValidateResponse,
   AsyncBatchValidateData,
+  AsyncRejectedItem,
 } from '../types.js';
 
 // Wire shapes after snakeToCamel. The API omits optional meta fields rather than
@@ -43,23 +46,6 @@ interface WireBatchItem {
   data?: VatValidationData | null;
   error?: { code?: string; message?: string; vatNumber?: string | null } | null;
   meta?: unknown;
-}
-
-/** Thrown while normalizing a malformed 2xx body; converted to a `parse_error` result by the caller. */
-class MissingFieldError extends Error {
-  constructor(field: string, context: string) {
-    super(`Missing required field "${field}" in ${context}`);
-    this.name = 'MissingFieldError';
-  }
-}
-
-function requireField<T>(value: T | null | undefined, field: string, context: string): T {
-  if (value === null || value === undefined) throw new MissingFieldError(field, context);
-  return value;
-}
-
-function asRecord<T extends object>(value: unknown): T {
-  return (typeof value === 'object' && value !== null && !Array.isArray(value) ? value : {}) as T;
 }
 
 function normalizeResultMeta(raw: unknown): ValidationResultMeta {
@@ -106,10 +92,17 @@ function normalizeBatchResult(raw: unknown): BatchResult {
   };
 }
 
-/** Maps a normalization failure on a 2xx body to a `parse_error`; rethrows anything else. */
-function toParseError(err: unknown, response: { headers: Headers; status: number }): AvatcadoError {
-  if (!(err instanceof MissingFieldError)) throw err;
-  return new AvatcadoError(err.message, 'parse_error', response.status, response.headers.get('x-request-id'), '');
+/** `cache` and `fallback` as the API should receive them: only when the caller set a boolean. */
+function flags(params: ValidationFlags): { cache?: boolean; fallback?: boolean } {
+  const out: { cache?: boolean; fallback?: boolean } = {};
+  if (typeof params.cache === 'boolean') out.cache = params.cache;
+  if (typeof params.fallback === 'boolean') out.fallback = params.fallback;
+  return out;
+}
+
+function normalizeAsyncMeta(raw: unknown): AsyncMeta {
+  const meta = asRecord<AsyncMeta>(raw);
+  return { ...meta, requestId: requireField(meta.requestId, 'request_id', 'AsyncMeta') };
 }
 
 export class Vat {
@@ -129,8 +122,8 @@ export class Vat {
     if (params.requesterVatNumber) {
       query.requester_vat_number = params.requesterVatNumber;
     }
-    if (params.cache === false) {
-      query.cache = 'false';
+    for (const [flag, value] of Object.entries(flags(params))) {
+      query[flag] = String(value);
     }
 
     const result = await this.http.request('GET', '/v1/validate', {
@@ -188,9 +181,7 @@ export class Vat {
     if (params.requesterVatNumber) {
       body.requester_vat_number = params.requesterVatNumber;
     }
-    if (params.cache === false) {
-      body.cache = false;
-    }
+    Object.assign(body, flags(params));
 
     const result = await this.http.request('POST', '/v1/validate/batch', {
       body,
@@ -236,9 +227,7 @@ export class Vat {
     if (params.requesterVatNumber) {
       body.requester_vat_number = params.requesterVatNumber;
     }
-    if (params.cache === false) {
-      body.cache = false;
-    }
+    Object.assign(body, flags(params));
 
     const result = await this.http.request('POST', '/v1/validate/async', {
       body,
@@ -247,19 +236,27 @@ export class Vat {
 
     if (result.error) return result;
 
-    const transformed = snakeToCamel(result.data.json) as {
-      data: AsyncValidateData;
-      meta: AsyncMeta;
-    };
+    const payload = asRecord<{ data?: unknown; meta?: unknown }>(snakeToCamel(result.data.json));
 
-    return {
-      data: {
-        data: transformed.data,
-        meta: transformed.meta,
-        rateLimit: parseRateLimitHeaders(result.data.headers),
-      },
-      error: null,
-    };
+    try {
+      const context = 'AsyncValidateResponse';
+      const data = asRecord<Partial<AsyncValidateData>>(requireField(payload.data, 'data', context));
+      return {
+        data: {
+          data: {
+            ...data,
+            requestId: requireField(data.requestId, 'request_id', context),
+            status: requireField(data.status, 'status', context),
+            vatNumber: requireField(data.vatNumber, 'vat_number', context),
+          },
+          meta: normalizeAsyncMeta(payload.meta),
+          rateLimit: parseRateLimitHeaders(result.data.headers),
+        },
+        error: null,
+      };
+    } catch (err) {
+      return { data: null, error: toParseError(err, result.data) };
+    }
   }
 
   async validateBatchAsync(params: AsyncBatchValidateParams): Promise<AvatcadoResult<AsyncBatchValidateResponse>> {
@@ -282,9 +279,7 @@ export class Vat {
     if (params.requesterVatNumber) {
       body.requester_vat_number = params.requesterVatNumber;
     }
-    if (params.cache === false) {
-      body.cache = false;
-    }
+    Object.assign(body, flags(params));
 
     const result = await this.http.request('POST', '/v1/validate/async/batch', {
       body,
@@ -293,18 +288,28 @@ export class Vat {
 
     if (result.error) return result;
 
-    const transformed = snakeToCamel(result.data.json) as {
-      data: AsyncBatchValidateData;
-      meta: AsyncMeta;
-    };
+    const payload = asRecord<{ data?: unknown; meta?: unknown }>(snakeToCamel(result.data.json));
 
-    return {
-      data: {
-        data: transformed.data,
-        meta: transformed.meta,
-        rateLimit: parseRateLimitHeaders(result.data.headers),
-      },
-      error: null,
-    };
+    try {
+      const context = 'AsyncBatchValidateResponse';
+      const data = asRecord<Partial<AsyncBatchValidateData>>(requireField(payload.data, 'data', context));
+      return {
+        data: {
+          data: {
+            ...data,
+            batchId: data.batchId ?? null,
+            status: requireField(data.status, 'status', context),
+            total: requireField(data.total, 'total', context),
+            accepted: requireField(data.accepted, 'accepted', context),
+            rejected: requireArray<AsyncRejectedItem>(data.rejected, 'rejected', context),
+          },
+          meta: normalizeAsyncMeta(payload.meta),
+          rateLimit: parseRateLimitHeaders(result.data.headers),
+        },
+        error: null,
+      };
+    } catch (err) {
+      return { data: null, error: toParseError(err, result.data) };
+    }
   }
 }
