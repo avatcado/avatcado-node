@@ -2,7 +2,7 @@
 
 ## 0.9.0
 
-EORI number checks. Additive: no breaking changes.
+EORI number checks, the `fallback` option, opt-in retries, and fixes for request options the SDK could not send. No breaking changes; see "Changed" for two behaviours that differ from 0.8.0.
 
 ### Added
 
@@ -11,6 +11,24 @@ EORI number checks. Additive: no breaking changes.
 - **`error.eoriNumber`** (`string | null`) on `AvatcadoError` and every subclass: the normalized EORI number echoed by the API on errors from `eori.validate()`. `null` on every other error.
 - Error code `invalid_eori_format` (HTTP 422) maps to `ValidationError`.
 - Exported types `EoriValidateParams`, `EoriValidationData`, `EoriSourceStatus`, `EoriResponseMeta`, `EoriValidateResponse`, and the `Eori` resource class.
+- **`fallback`** (`boolean`, optional) on `vat.validate`, `vat.validateBatch`, `vat.validateAsync` and `vat.validateBatchAsync`. `false` stops a VIES outage from being answered by a national register; `true` next to `requesterVatNumber` accepts a register answer. Pro and Business plans.
+- **Opt-in retries**: client options `maxRetries` (default `0`, off) and `maxRetryDelay` (default `60000` ms). A burst-limit 429 and a 503 are retried on every method; a timeout, a network error, a 502 and a 504 on GET requests only. The SDK waits for `Retry-After`, otherwise 0.5 s doubling up to 8 s. See the README section "Timeouts and retries".
+- **`error.retryAfter`** (`number | null`) on `AvatcadoError` and every subclass, not only `RateLimitError` and `UpstreamError`. The API also sends `Retry-After` on a 503 `internal_error`.
+- `rates.list(options?)` and `rates.get(countryCode, options?)` accept `{ requestId }`, sent as `X-Request-Id`.
+- Exported types `RequestOptions` and `ValidationFlags`.
+- `tests/live.test.ts`: runs the SDK against a real API in test mode when `AVATCADO_TEST_API_KEY` is set.
+
+### Changed
+
+- **An explicit `cache: true` is now sent to the API.** Before, `cache` was sent only when `false`, so the documented way to opt back in to cached and stored results next to `requesterVatNumber` did nothing. Code that passes `cache: true` together with `requesterVatNumber` now gets what it asked for: a cached result when one exists. Leaving `cache` unset is unchanged.
+- **The timeout now covers the response body.** Before, the timer stopped when the headers arrived, and a stalled body could hang a call forever.
+
+### Fixed
+
+- `vat.validateAsync`, `vat.validateBatchAsync`, `rates.list` and `rates.get` return a `parse_error` result for a `2xx` body that does not have the documented shape. Before, a `null` body threw a `TypeError` out of a method documented never to throw, and a missing field came back as `undefined` typed as present.
+- An error response without a JSON body (a gateway answering for the API) keeps `requestId` from the `X-Request-Id` header. It was `null`.
+- `retryAfter` is `null` for a `Retry-After` header that is not a number of seconds or an HTTP date. On error responses it could be `NaN`.
+- README: the Node.js requirement is 20.19 or later (it said 18), and the national register list matches the API (`kas` and `vmi` never existed).
 
 ## 0.8.0
 

@@ -8,7 +8,7 @@ export default defineConfig({
   format: ['cjs', 'esm'],
   dts: true,
   clean: true,
-  target: 'node18',
+  target: 'node20',
   define: {
     __VERSION__: JSON.stringify(pkg.version),
   },
